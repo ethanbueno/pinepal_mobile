@@ -1,0 +1,326 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
+
+import '../models/scan_record.dart';
+import '../services/classifier_service.dart';
+import '../services/database_helper.dart';
+import '../services/location_service.dart';
+import '../theme/app_colors.dart';
+import 'result_detail_screen.dart';
+
+// Photo on top, a rounded sheet at the bottom. Tapping "Analyze Photo" runs
+// the model and the sheet shows the result (disease, confidence, top 3).
+class PhotoPreviewScreen extends StatefulWidget {
+  final String imagePath;
+  final String imageSource; // 'Camera' or 'Gallery'
+
+  const PhotoPreviewScreen({
+    super.key,
+    required this.imagePath,
+    required this.imageSource,
+  });
+
+  @override
+  State<PhotoPreviewScreen> createState() => _PhotoPreviewScreenState();
+}
+
+class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
+  final ClassifierService _classifier = ClassifierService();
+
+  bool _analyzing = false;
+  ClassificationResult? _result;
+  ScanRecord? _savedScan; // set once the scan is in the database
+  String? _error;
+
+  @override
+  void dispose() {
+    _classifier.close();
+    super.dispose();
+  }
+
+  Future<void> _analyze() async {
+    setState(() {
+      _analyzing = true;
+      _error = null;
+    });
+
+    try {
+      await _classifier.initialize(); // loads the model the first time only
+      final result = await _classifier.classifyImage(widget.imagePath);
+      if (!mounted) return;
+      setState(() => _result = result);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = 'Could not analyze the photo: $e');
+      return;
+    } finally {
+      if (mounted) setState(() => _analyzing = false);
+    }
+
+    await _saveScan(_result!);
+  }
+
+  // Camera and gallery files live in a cache folder the OS may clear, so the
+  // photo is copied to the app documents folder before it goes in history.
+  Future<String> _persistImage() async {
+    final documents = await getApplicationDocumentsDirectory();
+    final scansDir = Directory('${documents.path}/scans');
+    if (!await scansDir.exists()) {
+      await scansDir.create(recursive: true);
+    }
+    final fileName = 'scan_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final saved = await File(widget.imagePath).copy('${scansDir.path}/$fileName');
+    return saved.path;
+  }
+
+  // Saves the finished scan to the local database so it shows in History.
+  Future<void> _saveScan(ClassificationResult result) async {
+    try {
+      final imagePath = await _persistImage();
+      final position = await LocationService.getCurrentLocation();
+
+      final record = ScanRecord(
+          scanUuid: const Uuid().v4(),
+          predictedLabel: result.best.label,
+          confidence: result.best.confidence,
+          secondLabel: result.second?.label,
+          secondConfidence: result.second?.confidence,
+          imageSource: widget.imageSource,
+          imagePath: imagePath,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          scannedAt: DateTime.now(),
+      );
+      await DatabaseHelper.instance.insertScan(record);
+      if (mounted) setState(() => _savedScan = record);
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Could not save the scan: $e');
+    }
+  }
+
+  // "Crown_Rot_Disease" -> "Crown Rot Disease"
+  String _pretty(String label) => label.replaceAll('_', ' ');
+
+  String _percent(double value) => '${(value * 100).toStringAsFixed(1)}%';
+
+  @override
+  Widget build(BuildContext context) {
+    // Light status bar icons, they sit on top of the photo
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+      child: _buildScaffold(),
+    );
+  }
+
+  Widget _buildScaffold() {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Column(
+        children: [
+          // Photo fills the space above the sheet
+          Expanded(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.file(File(widget.imagePath), fit: BoxFit.cover),
+                SafeArea(
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: CircleAvatar(
+                        backgroundColor: Colors.black54,
+                        child: IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _buildSheet(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSheet() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border.all(color: context.colors.line),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.colors.line,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_result != null)
+              ..._buildResult(_result!)
+            else
+              ..._buildBeforeAnalysis(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Shown until the model has run
+  List<Widget> _buildBeforeAnalysis() {
+    return [
+      const Text(
+        'Photo ready',
+        style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        'Source: ${widget.imageSource}',
+        style: TextStyle(color: context.colors.textMuted),
+      ),
+      if (_error != null) ...[
+        const SizedBox(height: 8),
+        Text(_error!, style: TextStyle(color: context.colors.danger)),
+      ],
+      const SizedBox(height: 20),
+      ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+        ),
+        icon: _analyzing
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.search),
+        label: Text(_analyzing ? 'Analyzing...' : 'Analyze Photo'),
+        onPressed: _analyzing ? null : _analyze,
+      ),
+      const SizedBox(height: 8),
+      OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Retake'),
+      ),
+    ];
+  }
+
+  // Shown after the model has run
+  List<Widget> _buildResult(ClassificationResult result) {
+    return [
+      Text(
+        _pretty(result.best.label),
+        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        'Confidence: ${_percent(result.best.confidence)}',
+        style: TextStyle(color: context.colors.textMuted),
+      ),
+
+      // Warning when the model is not sure
+      if (result.isLowConfidence) ...[
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: context.colors.surface2,
+            borderRadius: BorderRadius.circular(AppRadius.control),
+            border: Border.all(color: context.colors.danger),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.warning_amber, color: context.colors.danger),
+              SizedBox(width: 8),
+              Expanded(child: Text('Not sure, please retake the photo.')),
+            ],
+          ),
+        ),
+      ],
+
+      const SizedBox(height: 16),
+      Text(
+        'Top 3 guesses',
+        style: TextStyle(color: context.colors.textMuted),
+      ),
+      const SizedBox(height: 8),
+      for (final p in result.topPredictions)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            children: [
+              Expanded(child: Text(_pretty(p.label))),
+              Text(_percent(p.confidence)),
+            ],
+          ),
+        ),
+
+      const SizedBox(height: 12),
+      if (_savedScan != null)
+        Row(
+          children: [
+            Icon(Icons.check_circle, size: 16, color: context.colors.success),
+            SizedBox(width: 6),
+            Text(
+              'Saved to history',
+              style: TextStyle(color: context.colors.success, fontSize: 13),
+            ),
+          ],
+        )
+      else if (_error != null)
+        Text(_error!, style: TextStyle(color: context.colors.danger)),
+      const SizedBox(height: 16),
+      if (_savedScan != null) ...[
+        ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+          icon: const Icon(Icons.description_outlined),
+          label: const Text('View full report'),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ResultDetailScreen(scan: _savedScan!),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
+      OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Scan another'),
+      ),
+    ];
+  }
+}
