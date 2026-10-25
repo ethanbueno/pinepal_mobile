@@ -53,34 +53,62 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() => _reload++);
   }
 
+  // The bar is a pill (radius 32). The active tab is a pill inside it, with the
+  // same gap on every side (6), so both shapes follow each other. 25 is half
+  // of the tab height: 64 - 2 (border) - 2 * 6 = 50.
+  static const _navInset = 6.0;
+  static const _tabRadius = 25.0;
+
   // Active tab gets a soft accent background, like the web navigation
   Widget _navItem(int index, IconData icon, String label) {
     final selected = _index == index;
-    final color = selected ? context.colors.accentText : context.colors.textMuted;
+    final color = selected
+        ? context.colors.accentText
+        : context.colors.textMuted;
 
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-        child: Material(
-          color: selected ? context.colors.accentSoft : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => setState(() => _index = index),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: color),
-                const SizedBox(height: 2),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: color,
+        // 2 between tabs; the first and last keep the full gap to the bar edge
+        padding: EdgeInsets.fromLTRB(
+          index == 0 ? _navInset : 2,
+          _navInset,
+          index == 3 ? _navInset : 2,
+          _navInset,
+        ),
+        // The pill fades in and out; the press effect is tinted with the accent
+        // instead of Material's default grey
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            color: selected ? context.colors.accentSoft : Colors.transparent,
+            borderRadius: BorderRadius.circular(_tabRadius),
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            borderRadius: BorderRadius.circular(_tabRadius),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => setState(() => _index = index),
+              splashColor: context.colors.accent.withValues(alpha: 0.18),
+              highlightColor: Colors.transparent,
+              hoverColor: Colors.transparent,
+              focusColor: Colors.transparent,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: color),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -103,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
             height: 64,
             decoration: BoxDecoration(
               color: context.colors.surface,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(32),
               border: Border.all(color: context.colors.line),
             ),
             child: Row(
@@ -119,6 +147,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       clipBehavior: Clip.antiAlias,
                       child: InkWell(
                         onTap: _openScanner,
+                        splashColor: context.colors.onAccent.withValues(
+                          alpha: 0.15,
+                        ),
+                        highlightColor: Colors.transparent,
                         child: SizedBox(
                           width: 52,
                           height: 52,
@@ -266,15 +298,18 @@ class _HomeTabState extends State<_HomeTab> {
                       border: Border.all(color: context.colors.line),
                     ),
                     child: ListTile(
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              ResultDetailScreen(scan: scan),
-                        ),
-                      ).then((_) {
-                        if (mounted) setState(() => _recent = _loadRecent());
-                      }),
+                      onTap: () =>
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  ResultDetailScreen(scan: scan),
+                            ),
+                          ).then((_) {
+                            if (mounted) {
+                              setState(() => _recent = _loadRecent());
+                            }
+                          }),
                       leading: ClipRRect(
                         borderRadius: BorderRadius.circular(AppRadius.control),
                         child: Image.file(
