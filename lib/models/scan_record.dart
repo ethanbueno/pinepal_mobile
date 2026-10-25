@@ -1,3 +1,10 @@
+// The farmer's answer to "was the result correct?". Officers verify scans on
+// the web dashboard; this is only the farmer's side of it.
+enum ScanFeedback {
+  correct, // the model got it right
+  incorrect, // the farmer reports the result as wrong
+}
+
 // One saved scan. The column names in toMap() match the scans table
 // of the backend, so the same data can be uploaded when syncing.
 class ScanRecord {
@@ -24,8 +31,11 @@ class ScanRecord {
 
   final String? notes;
 
-  // What the fruit actually turned out to be, set by the farmer on the verify
-  // screen. Null means nobody has checked this scan yet.
+  // Null until the farmer gives feedback on the scan screen.
+  final ScanFeedback? feedback;
+
+  // What the farmer says the fruit actually is. Null when there is no feedback,
+  // or when the result was reported wrong and the farmer is not sure what it is.
   final String? verifiedLabel;
 
   ScanRecord({
@@ -42,15 +52,17 @@ class ScanRecord {
     this.synced = false,
     this.syncedAt,
     this.notes,
+    this.feedback,
     this.verifiedLabel,
   });
 
   bool get hasGps => latitude != 0.0 || longitude != 0.0;
 
-  bool get isVerified => verifiedLabel != null && verifiedLabel!.isNotEmpty;
+  bool get hasFeedback => feedback != null;
 
-  // Null when unverified, so unchecked scans are not counted as wrong
-  bool? get isCorrect => isVerified ? verifiedLabel == predictedLabel : null;
+  // Null without feedback, so unchecked scans are not counted as wrong
+  bool? get isCorrect =>
+      feedback == null ? null : feedback == ScanFeedback.correct;
 
   // sqflite has no bool or DateTime type, so we store 0/1 and ISO text.
   Map<String, dynamic> toMap() {
@@ -68,6 +80,7 @@ class ScanRecord {
       'synced': synced ? 1 : 0,
       'synced_at': syncedAt?.toIso8601String(),
       'notes': notes,
+      'feedback': feedback?.name,
       'verified_label': verifiedLabel,
     };
   }
@@ -89,13 +102,16 @@ class ScanRecord {
           ? null
           : DateTime.parse(map['synced_at'] as String),
       notes: map['notes'] as String?,
+      feedback: ScanFeedback.values.asNameMap()[map['feedback']],
       verifiedLabel: map['verified_label'] as String?,
     );
   }
 
   // The prediction, photo and GPS are what the model produced and never
-  // change; only the farmer's verification and notes can be edited.
+  // change; only the farmer's feedback and notes can be edited.
   ScanRecord copyWith({
+    ScanFeedback? feedback,
+    bool clearFeedback = false,
     String? verifiedLabel,
     bool clearVerifiedLabel = false,
     String? notes,
@@ -115,6 +131,7 @@ class ScanRecord {
       synced: synced,
       syncedAt: syncedAt,
       notes: clearNotes ? null : (notes ?? this.notes),
+      feedback: clearFeedback ? null : (feedback ?? this.feedback),
       verifiedLabel: clearVerifiedLabel
           ? null
           : (verifiedLabel ?? this.verifiedLabel),

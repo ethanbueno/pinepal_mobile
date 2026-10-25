@@ -98,29 +98,8 @@ class _Section extends StatelessWidget {
   }
 }
 
-Widget _bullet(BuildContext context, String text, IconData icon, Color color) {
-  return Padding(
-    padding: const EdgeInsets.only(bottom: 6),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Icon(icon, color: color, size: 16),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(color: context.colors.textMuted, fontSize: 14),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-// What the disease is and how to recognise it
+// What the disease is and how to recognise it. The symptoms read as one short
+// paragraph, so the card is not a list of bullets.
 class PathogenCard extends StatelessWidget {
   final RemediationProtocol protocol;
 
@@ -143,19 +122,26 @@ class PathogenCard extends StatelessWidget {
         if (protocol.symptoms.isNotEmpty) ...[
           const SizedBox(height: 16),
           const Text(
-            'Key visual symptoms',
+            'What to look for',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 8),
-          for (final symptom in protocol.symptoms)
-            _bullet(context, symptom, Icons.center_focus_weak, context.colors.accent),
+          const SizedBox(height: 6),
+          Text(
+            protocol.symptoms.join(' '),
+            style: TextStyle(
+              color: context.colors.textMuted,
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
         ],
       ],
     );
   }
 }
 
-// Numbered treatment steps, then preventive practices
+// Treatment steps in order, then prevention as a short paragraph. Only the
+// steps are numbered, because their order matters.
 class RemediationCard extends StatelessWidget {
   final RemediationProtocol protocol;
 
@@ -168,30 +154,23 @@ class RemediationCard extends StatelessWidget {
       title: 'Step-by-step remediation',
       children: [
         for (var i = 0; i < protocol.remediationSteps.length; i++)
-          Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: context.colors.canvas,
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              border: Border.all(color: context.colors.line),
-            ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 13,
-                  backgroundColor: context.colors.accent,
+                SizedBox(
+                  width: 24,
                   child: Text(
-                    '${i + 1}',
+                    '${i + 1}.',
                     style: TextStyle(
-                      color: context.colors.onAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                      color: context.colors.accentText,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 1.4,
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     protocol.remediationSteps[i],
@@ -204,12 +183,18 @@ class RemediationCard extends StatelessWidget {
         if (protocol.preventiveMeasures.isNotEmpty) ...[
           const SizedBox(height: 8),
           const Text(
-            'Preventive and cultural practices',
+            'Prevention',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 8),
-          for (final measure in protocol.preventiveMeasures)
-            _bullet(context, measure, Icons.shield_outlined, context.colors.success),
+          const SizedBox(height: 6),
+          Text(
+            protocol.preventiveMeasures.join(' '),
+            style: TextStyle(
+              color: context.colors.textMuted,
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
         ],
       ],
     );

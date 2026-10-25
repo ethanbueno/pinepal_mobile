@@ -79,31 +79,107 @@ void main() {
     await db.deleteScan('new');
   });
 
-  test('verification, accuracy summary and delete all', () async {
+  test('feedback, accuracy summary and delete all', () async {
     await db.insertScan(makeScan('a')); // predicted Crown_Rot
     await db.insertScan(makeScan('b'));
     await db.insertScan(makeScan('c'));
+    await db.insertScan(makeScan('d'));
 
-    // a: model was right, b: model was wrong, c: not checked yet
-    await db.updateVerification('a', verifiedLabel: 'Crown_Rot', notes: 'ok');
-    await db.updateVerification('b', verifiedLabel: 'Fruit_Rot');
+    // a: model was right, b: wrong and the farmer knows what it is,
+    // c: wrong but the farmer is not sure what it is, d: no answer yet
+    await db.updateFeedback(
+      'a',
+      feedback: ScanFeedback.correct,
+      verifiedLabel: 'Crown_Rot',
+      notes: 'ok',
+    );
+    await db.updateFeedback(
+      'b',
+      feedback: ScanFeedback.incorrect,
+      verifiedLabel: 'Fruit_Rot',
+    );
+    await db.updateFeedback('c', feedback: ScanFeedback.incorrect);
 
     final a = (await db.getScan('a'))!;
-    expect(a.isVerified, true);
+    expect(a.hasFeedback, true);
     expect(a.isCorrect, true);
     expect(a.notes, 'ok');
     expect((await db.getScan('b'))!.isCorrect, false);
-    expect((await db.getScan('c'))!.isCorrect, isNull);
+    expect((await db.getScan('b'))!.verifiedLabel, 'Fruit_Rot');
+    final c = (await db.getScan('c'))!;
+    expect(c.isCorrect, false);
+    expect(c.verifiedLabel, isNull);
+    expect((await db.getScan('d'))!.isCorrect, isNull);
 
-    expect(await db.getSummary(), {'total': 3, 'verified': 2, 'correct': 1});
+    expect(await db.getSummary(), {'total': 4, 'checked': 3, 'correct': 1});
 
-    // Clearing the verification puts the scan back to unchecked
-    await db.updateVerification('a');
-    expect((await db.getScan('a'))!.isVerified, false);
+    // Clearing the answer puts the scan back to "no feedback"
+    await db.updateFeedback('a');
+    expect((await db.getScan('a'))!.hasFeedback, false);
 
     await db.deleteAllScans();
     expect(await db.getAllScans(), isEmpty);
   });
+
+  test(
+    'upgrading a v2 database turns old checked scans into feedback',
+    () async {
+      final path = '${await databaseFactory.getDatabasesPath()}/v2_test.db';
+      await databaseFactory.deleteDatabase(path);
+
+      // A database as release 2 created it: verified_label, no feedback column
+      final v2 = await databaseFactory.openDatabase(
+        path,
+        options: OpenDatabaseOptions(
+          version: 2,
+          onCreate: (db, version) => db.execute('''
+          CREATE TABLE scans (
+            scan_uuid TEXT PRIMARY KEY, predicted_label TEXT NOT NULL,
+            confidence REAL NOT NULL, second_label TEXT,
+            second_confidence REAL, image_source TEXT NOT NULL,
+            image_path TEXT NOT NULL, latitude REAL NOT NULL,
+            longitude REAL NOT NULL, scanned_at TEXT NOT NULL,
+            synced INTEGER NOT NULL DEFAULT 0, synced_at TEXT, notes TEXT,
+            verified_label TEXT
+          )
+        '''),
+        ),
+      );
+      Future<void> add(String uuid, String predicted, String? verified) =>
+          v2.insert('scans', {
+            'scan_uuid': uuid,
+            'predicted_label': predicted,
+            'confidence': 0.8,
+            'image_source': 'Camera',
+            'image_path': '/p.jpg',
+            'latitude': 0.0,
+            'longitude': 0.0,
+            'scanned_at': '2026-10-01T08:00:00.000',
+            'verified_label': verified,
+          });
+      await add('right', 'Crown_Rot', 'Crown_Rot');
+      await add('wrong', 'Crown_Rot', 'Fruit_Rot');
+      await add('unchecked', 'Crown_Rot', null);
+      await v2.close();
+
+      // Opens it again with the app's real upgrade code
+      final v3 = await databaseFactory.openDatabase(
+        path,
+        options: OpenDatabaseOptions(
+          version: 3,
+          onUpgrade: DatabaseHelper.upgrade,
+        ),
+      );
+      final rows = await v3.query('scans');
+      String? feedbackOf(String uuid) =>
+          rows.firstWhere((r) => r['scan_uuid'] == uuid)['feedback'] as String?;
+      expect(feedbackOf('right'), 'correct');
+      expect(feedbackOf('wrong'), 'incorrect');
+      expect(feedbackOf('unchecked'), isNull);
+      await v3.close();
+      await databaseFactory.deleteDatabase(path);
+    },
+  );
 
   test('upgrading a v1 database keeps scans and adds verified_label', () async {
     final path = '${await databaseFactory.getDatabasesPath()}/upgrade_test.db';

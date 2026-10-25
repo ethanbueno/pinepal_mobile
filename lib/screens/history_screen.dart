@@ -23,7 +23,7 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   late Future<List<ScanRecord>> _scans;
-  Map<String, int> _summary = const {'total': 0, 'verified': 0, 'correct': 0};
+  Map<String, int> _summary = const {'total': 0, 'checked': 0, 'correct': 0};
   bool _exporting = false;
 
   @override
@@ -129,9 +129,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _openDetail(ScanRecord scan) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => ResultDetailScreen(scan: scan),
-      ),
+      MaterialPageRoute(builder: (context) => ResultDetailScreen(scan: scan)),
     );
     if (mounted) _reload();
   }
@@ -205,21 +203,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // Not verified / Verified correct / Actually <label>
-  Widget _verificationChip(ScanRecord scan) {
-    if (!scan.isVerified) {
-      return _chip('Not verified', context.colors.textMuted,
-          icon: Icons.help_outline);
+  // No feedback / Marked correct / Actually <label> / Reported wrong
+  Widget _feedbackChip(ScanRecord scan) {
+    switch (scan.feedback) {
+      case null:
+        return _chip(
+          'No feedback',
+          context.colors.textMuted,
+          icon: Icons.help_outline,
+        );
+      case ScanFeedback.correct:
+        return _chip(
+          'Marked correct',
+          context.colors.success,
+          icon: Icons.check_circle_outline,
+        );
+      case ScanFeedback.incorrect:
+        final actual = scan.verifiedLabel;
+        return actual == null
+            ? _chip(
+                'Reported wrong',
+                context.colors.warning,
+                icon: Icons.flag_outlined,
+              )
+            : _chip(
+                'Actually ${LabelService.pretty(actual)}',
+                context.colors.warning,
+                icon: Icons.cancel_outlined,
+              );
     }
-    if (scan.isCorrect == true) {
-      return _chip('Verified correct', context.colors.success,
-          icon: Icons.check_circle_outline);
-    }
-    return _chip(
-      'Actually ${LabelService.pretty(scan.verifiedLabel!)}',
-      context.colors.warning,
-      icon: Icons.cancel_outlined,
-    );
   }
 
   @override
@@ -270,10 +282,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _buildSummaryBar() {
     final total = _summary['total'] ?? 0;
-    final verified = _summary['verified'] ?? 0;
+    final checked = _summary['checked'] ?? 0;
     final correct = _summary['correct'] ?? 0;
-    final accuracy =
-        verified == 0 ? '--' : '${(correct / verified * 100).round()}%';
+    final accuracy = checked == 0
+        ? '--'
+        : '${(correct / checked * 100).round()}%';
 
     Widget stat(String value, String label) {
       return Column(
@@ -305,7 +318,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           stat('$total', 'scans'),
-          stat('$verified', 'verified'),
+          stat('$checked', 'checked'),
           stat(accuracy, 'accuracy'),
         ],
       ),
@@ -394,10 +407,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             Wrap(
               spacing: 6,
               runSpacing: 4,
-              children: [
-                _statusChip(scan.synced),
-                _verificationChip(scan),
-              ],
+              children: [_statusChip(scan.synced), _feedbackChip(scan)],
             ),
           ],
         ),

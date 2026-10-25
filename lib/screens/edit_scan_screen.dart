@@ -7,9 +7,10 @@ import '../services/database_helper.dart';
 import '../services/label_service.dart';
 import '../theme/app_colors.dart';
 
-// The "update" screen. The prediction and confidence are read-only because
-// they are what the model produced; only the farmer's verification and notes
-// can be edited. Pops with true when something was saved.
+// The feedback screen. The prediction and confidence are read-only because
+// they are what the model produced; only the farmer's feedback and notes can
+// be edited. Officers verify scans on the web dashboard, so this is only the
+// farmer saying whether the result looked right. Pops with true when saved.
 class EditScanScreen extends StatefulWidget {
   final ScanRecord scan;
 
@@ -20,12 +21,18 @@ class EditScanScreen extends StatefulWidget {
 }
 
 class _EditScanScreenState extends State<EditScanScreen> {
-  static const String _unverified = '__unverified__';
-
   late final Future<List<String>> _labels = LabelService.load();
-  late final TextEditingController _notes =
-      TextEditingController(text: widget.scan.notes ?? '');
-  late String _selected = widget.scan.verifiedLabel ?? _unverified;
+  late final TextEditingController _notes = TextEditingController(
+    text: widget.scan.notes ?? '',
+  );
+
+  late ScanFeedback? _feedback = widget.scan.feedback;
+
+  // What the fruit actually is, only asked when the result was wrong.
+  // Null means "not sure".
+  late String? _actual = widget.scan.feedback == ScanFeedback.incorrect
+      ? widget.scan.verifiedLabel
+      : null;
 
   bool _saving = false;
 
@@ -39,10 +46,18 @@ class _EditScanScreenState extends State<EditScanScreen> {
     setState(() => _saving = true);
     final notes = _notes.text.trim();
 
+    // A correct result means the farmer agrees with the model's label
+    final label = switch (_feedback) {
+      ScanFeedback.correct => widget.scan.predictedLabel,
+      ScanFeedback.incorrect => _actual,
+      null => null,
+    };
+
     try {
-      await DatabaseHelper.instance.updateVerification(
+      await DatabaseHelper.instance.updateFeedback(
         widget.scan.scanUuid,
-        verifiedLabel: _selected == _unverified ? null : _selected,
+        feedback: _feedback,
+        verifiedLabel: label,
         notes: notes.isEmpty ? null : notes,
       );
       if (!mounted) return;
@@ -50,9 +65,9 @@ class _EditScanScreenState extends State<EditScanScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not save: $e')));
     }
   }
 
@@ -74,13 +89,116 @@ class _EditScanScreenState extends State<EditScanScreen> {
     );
   }
 
+  // One of the two answers: a card that lights up in its color when chosen
+  Widget _choice({
+    required ScanFeedback value,
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+  }) {
+    final selected = _feedback == value;
+    return Material(
+      color: selected ? color.withValues(alpha: 0.1) : context.colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: BorderSide(color: selected ? color : context.colors.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _saving ? null : () => setState(() => _feedback = value),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Icon(icon, color: selected ? color : context.colors.textMuted),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: context.colors.textMuted,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (selected) Icon(Icons.check_circle, color: color),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // "What is it actually?" with a "Not sure" first option. The label the
+  // model predicted is left out, because that would be the other answer.
+  Widget _actualPicker(List<String> labels) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'What is it actually? (optional)',
+            style: TextStyle(color: context.colors.textMuted, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: context.colors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              border: Border.all(color: context.colors.line),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: _actual,
+                isExpanded: true,
+                dropdownColor: context.colors.surface,
+                items: [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text(
+                      'Not sure',
+                      style: TextStyle(color: context.colors.textMuted),
+                    ),
+                  ),
+                  for (final label in labels)
+                    if (label != widget.scan.predictedLabel)
+                      DropdownMenuItem<String?>(
+                        value: label,
+                        child: Text(LabelService.pretty(label)),
+                      ),
+                ],
+                onChanged: _saving ? null : (v) => setState(() => _actual = v),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scan = widget.scan;
     final image = File(scan.imagePath);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Verify Scan')),
+      appBar: AppBar(title: const Text('Your Feedback')),
       body: FutureBuilder<List<String>>(
         future: _labels,
         builder: (context, snapshot) {
@@ -114,53 +232,55 @@ class _EditScanScreenState extends State<EditScanScreen> {
                 ),
                 const Divider(height: 32),
                 const Text(
-                  'What was it actually?',
+                  'Was the result correct?',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Leave this unset if you have not checked the fruit yet. '
-                  'Unset scans are left out of the accuracy figure.',
-                  style: TextStyle(color: context.colors.textMuted, fontSize: 12),
+                  'Check the fruit, then tell us. Scans without an answer are '
+                  'left out of the accuracy figure.',
+                  style: TextStyle(
+                    color: context.colors.textMuted,
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: context.colors.surface,
-                    borderRadius: BorderRadius.circular(AppRadius.control),
-                    border: Border.all(color: context.colors.line),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selected,
-                      isExpanded: true,
-                      dropdownColor: context.colors.surface,
-                      items: [
-                        DropdownMenuItem(
-                          value: _unverified,
-                          child: Text(
-                            'Not verified yet',
-                            style: TextStyle(color: context.colors.textMuted),
-                          ),
-                        ),
-                        for (final label in labels)
-                          DropdownMenuItem(
-                            value: label,
-                            child: Text(LabelService.pretty(label)),
-                          ),
-                      ],
-                      onChanged: _saving
+                _choice(
+                  value: ScanFeedback.correct,
+                  icon: Icons.check_circle_outline,
+                  color: context.colors.success,
+                  title: 'Yes, it is correct',
+                  subtitle: 'The result matches what I see on the fruit',
+                ),
+                const SizedBox(height: 8),
+                _choice(
+                  value: ScanFeedback.incorrect,
+                  icon: Icons.flag_outlined,
+                  color: context.colors.warning,
+                  title: 'No, the result is wrong',
+                  subtitle: 'Report it so the model can be checked',
+                ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 150),
+                  alignment: Alignment.topCenter,
+                  child: _feedback == ScanFeedback.incorrect
+                      ? _actualPicker(labels)
+                      : const SizedBox(width: double.infinity),
+                ),
+                if (_feedback != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: _saving
                           ? null
-                          : (value) {
-                              if (value != null) {
-                                setState(() => _selected = value);
-                              }
-                            },
+                          : () => setState(() {
+                              _feedback = null;
+                              _actual = null;
+                            }),
+                      child: const Text('Clear my answer'),
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 const Text(
                   'Field notes',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -175,22 +295,25 @@ class _EditScanScreenState extends State<EditScanScreen> {
                   ),
                 ),
                 const SizedBox(height: 28),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    icon: _saving
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: context.colors.onAccent,
+                            ),
+                          )
+                        : const Icon(Icons.save_outlined),
+                    label: Text(_saving ? 'Saving...' : 'Save feedback'),
+                    onPressed: _saving ? null : _save,
                   ),
-                  icon: _saving
-                      ? SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: context.colors.onAccent,
-                          ),
-                        )
-                      : const Icon(Icons.save_outlined),
-                  label: Text(_saving ? 'Saving...' : 'Save changes'),
-                  onPressed: _saving ? null : _save,
                 ),
               ],
             ),

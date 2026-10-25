@@ -32,33 +32,65 @@ void main() {
     expect(a.name, b.name);
   });
 
-  test('CSV export quotes cells and leaves unverified is_correct blank', () {
-    final scan = ScanRecord(
-      scanUuid: 'u1',
+  test(
+    'CSV export quotes cells and leaves is_correct blank without feedback',
+    () {
+      final scan = ScanRecord(
+        scanUuid: 'u1',
+        predictedLabel: 'Crown_Rot',
+        confidence: 0.91234567,
+        imageSource: 'Camera',
+        imagePath: r'C:\photos\scan_1.jpg',
+        latitude: 0,
+        longitude: 0,
+        scannedAt: DateTime(2026, 10, 8, 9, 30),
+        notes: 'Block 3, "wet" day',
+      );
+
+      final lines = ExportService.buildCsv([scan]).trim().split('\n');
+      expect(lines.first, ExportService.headers.join(','));
+
+      final row = lines[1];
+      expect(row, contains('2026-10-08'));
+      expect(row, contains('0.9123'));
+      expect(row, contains('"Block 3, ""wet"" day"'));
+      expect(row, endsWith('scan_1.jpg'));
+      // feedback blank, is_verified = 0, is_correct blank, has_gps = 0
+      expect(row, contains(',,0,,0,,,Camera,'));
+    },
+  );
+
+  test('CSV export writes the farmer feedback', () {
+    ScanRecord scan(ScanFeedback? feedback, String? actual) => ScanRecord(
+      scanUuid: 'u',
       predictedLabel: 'Crown_Rot',
-      confidence: 0.91234567,
+      confidence: 0.9,
       imageSource: 'Camera',
-      imagePath: r'C:\photos\scan_1.jpg',
+      imagePath: '/p/scan.jpg',
       latitude: 0,
       longitude: 0,
-      scannedAt: DateTime(2026, 10, 8, 9, 30),
-      notes: 'Block 3, "wet" day',
+      scannedAt: DateTime(2026, 10, 8),
+      feedback: feedback,
+      verifiedLabel: actual,
     );
 
-    final lines = ExportService.buildCsv([scan]).trim().split('\n');
-    expect(lines.first, ExportService.headers.join(','));
+    List<String> cells(ScanRecord r) =>
+        ExportService.buildCsv([r]).trim().split('\n')[1].split(',');
+    final feedbackAt = ExportService.headers.indexOf('feedback');
+    final correctAt = ExportService.headers.indexOf('is_correct');
 
-    final row = lines[1];
-    expect(row, contains('2026-10-08'));
-    expect(row, contains('0.9123'));
-    expect(row, contains('"Block 3, ""wet"" day"'));
-    expect(row, endsWith('scan_1.jpg'));
-    // is_verified = 0, is_correct blank, has_gps = 0
-    expect(row, contains(',0,,0,,,Camera,'));
+    final right = cells(scan(ScanFeedback.correct, 'Crown_Rot'));
+    expect([right[feedbackAt], right[correctAt]], ['correct', '1']);
+
+    // Reported wrong and the farmer was not sure what it is
+    final unsure = cells(scan(ScanFeedback.incorrect, null));
+    expect([unsure[feedbackAt], unsure[correctAt]], ['incorrect', '0']);
   });
 
   test('asset bundle exposes the protocols file', () async {
-    final raw = await rootBundle.loadString('assets/data/remediation_protocols.json');
+    final raw = await rootBundle.loadString(
+      'assets/data/remediation_protocols.json',
+    );
     expect(raw, contains('Crown Rot'));
   });
 }

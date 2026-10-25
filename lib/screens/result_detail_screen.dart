@@ -59,12 +59,13 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           final protocol =
-              snapshot.data ?? RemediationProtocol.fallback(_scan.predictedLabel);
+              snapshot.data ??
+              RemediationProtocol.fallback(_scan.predictedLabel);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildImageCard(protocol),
                 if (_scan.confidence < ClassifierService.minConfidence) ...[
@@ -82,9 +83,9 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  icon: const Icon(Icons.fact_check_outlined),
+                  icon: const Icon(Icons.rate_review_outlined),
                   label: Text(
-                    _scan.isVerified ? 'Edit verification' : 'Verify this scan',
+                    _scan.hasFeedback ? 'Edit feedback' : 'Give feedback',
                   ),
                   onPressed: _openEditor,
                 ),
@@ -163,8 +164,10 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                   child: SeverityChip(severity: protocol.severity),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: context.colors.canvas.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -194,11 +197,16 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.image_not_supported,
-                color: context.colors.textMuted, size: 48),
+            Icon(
+              Icons.image_not_supported,
+              color: context.colors.textMuted,
+              size: 48,
+            ),
             SizedBox(height: 8),
-            Text('Image unavailable',
-                style: TextStyle(color: context.colors.textMuted)),
+            Text(
+              'Image unavailable',
+              style: TextStyle(color: context.colors.textMuted),
+            ),
           ],
         ),
       ),
@@ -227,14 +235,21 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
   Widget _buildSummaryCard(RemediationProtocol protocol) {
     final scan = _scan;
 
-    final String verification;
-    if (!scan.isVerified) {
-      verification = 'Not verified yet';
-    } else if (scan.isCorrect == true) {
-      verification = 'Verified: model was correct';
-    } else {
-      verification =
-          'Verified: actually ${LabelService.pretty(scan.verifiedLabel!)}';
+    final actual = scan.verifiedLabel;
+    final String feedback;
+    final IconData feedbackIcon;
+    switch (scan.feedback) {
+      case null:
+        feedback = 'No feedback yet';
+        feedbackIcon = Icons.help_outline;
+      case ScanFeedback.correct:
+        feedback = 'You marked this result correct';
+        feedbackIcon = Icons.check_circle_outline;
+      case ScanFeedback.incorrect:
+        feedback = actual == null
+            ? 'You reported this result as wrong'
+            : 'You reported it as wrong: actually ${LabelService.pretty(actual)}';
+        feedbackIcon = Icons.flag_outlined;
     }
 
     return Container(
@@ -272,20 +287,20 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
             Icons.location_on_outlined,
             scan.hasGps
                 ? 'GPS: ${scan.latitude.toStringAsFixed(4)}, '
-                    '${scan.longitude.toStringAsFixed(4)}'
+                      '${scan.longitude.toStringAsFixed(4)}'
                 : 'GPS location unavailable',
           ),
-          _row(Icons.access_time, 'Scanned on ${formatDateTime(scan.scannedAt)}'),
+          _row(
+            Icons.access_time,
+            'Scanned on ${formatDateTime(scan.scannedAt)}',
+          ),
           _row(
             scan.imageSource == 'Camera'
                 ? Icons.camera_alt_outlined
                 : Icons.photo_library_outlined,
             'Source: ${scan.imageSource}',
           ),
-          _row(
-            scan.isVerified ? Icons.check_circle_outline : Icons.help_outline,
-            verification,
-          ),
+          _row(feedbackIcon, feedback),
           if (scan.notes != null) _row(Icons.notes, scan.notes!),
         ],
       ),

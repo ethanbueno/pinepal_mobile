@@ -23,6 +23,7 @@ class ExportService {
     'second_label',
     'second_confidence',
     'verified_label',
+    'feedback',
     'is_verified',
     'is_correct',
     'has_gps',
@@ -50,8 +51,11 @@ class ExportService {
           ? ''
           : double.parse(r.secondConfidence!.toStringAsFixed(4)),
       r.verifiedLabel ?? '',
-      r.isVerified ? 1 : 0,
-      // Blank rather than 0 when unverified, so unchecked scans do not get
+      r.feedback?.name ?? '',
+      // is_verified keeps its name for the analysis scripts: 1 = the farmer
+      // gave feedback on this scan
+      r.hasFeedback ? 1 : 0,
+      // Blank rather than 0 without feedback, so unchecked scans do not get
       // counted as incorrect during analysis.
       r.isCorrect == null ? '' : (r.isCorrect! ? 1 : 0),
       r.hasGps ? 1 : 0,

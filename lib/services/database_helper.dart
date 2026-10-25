@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -22,9 +23,9 @@ class DatabaseHelper {
     final path = join(dbPath, fileName);
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _createDB,
-      onUpgrade: _upgradeDB,
+      onUpgrade: upgrade,
     );
   }
 
@@ -44,16 +45,35 @@ class DatabaseHelper {
         synced INTEGER NOT NULL DEFAULT 0,
         synced_at TEXT,
         notes TEXT,
-        verified_label TEXT
+        verified_label TEXT,
+        feedback TEXT
       )
     ''');
   }
 
-  // Existing installs already have scans, so add the column instead of
+  // Existing installs already have scans, so add the columns instead of
   // recreating the table.
-  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+  @visibleForTesting
+  static Future<void> upgrade(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
     if (oldVersion < 2) {
       await db.execute('ALTER TABLE scans ADD COLUMN verified_label TEXT');
+    }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE scans ADD COLUMN feedback TEXT');
+      // Scans checked before feedback existed: the label the farmer picked
+      // tells whether the model was right
+      await db.execute('''
+        UPDATE scans
+        SET feedback = CASE
+          WHEN verified_label = predicted_label THEN 'correct'
+          ELSE 'incorrect'
+        END
+        WHERE verified_label IS NOT NULL AND verified_label != ''
+      ''');
     }
   }
 
@@ -92,23 +112,28 @@ class DatabaseHelper {
     );
   }
 
-  // UPDATE: the farmer's verification and notes (pass null to clear either)
-  Future<void> updateVerification(
+  // UPDATE: the farmer's feedback and notes (pass null to clear any of them)
+  Future<void> updateFeedback(
     String scanUuid, {
+    ScanFeedback? feedback,
     String? verifiedLabel,
     String? notes,
   }) async {
     final db = await database;
     await db.update(
       'scans',
-      {'verified_label': verifiedLabel, 'notes': notes},
+      {
+        'feedback': feedback?.name,
+        'verified_label': verifiedLabel,
+        'notes': notes,
+      },
       where: 'scan_uuid = ?',
       whereArgs: [scanUuid],
     );
   }
 
   // Numbers shown above the history list: how many scans, how many the
-  // farmer checked, and how many of those the model got right.
+  // farmer gave feedback on, and how many of those the model got right.
   Future<Map<String, int>> getSummary() async {
     final db = await database;
 
@@ -119,11 +144,10 @@ class DatabaseHelper {
       return Sqflite.firstIntValue(rows) ?? 0;
     }
 
-    const verified = "verified_label IS NOT NULL AND verified_label != ''";
     return {
       'total': await count(''),
-      'verified': await count(verified),
-      'correct': await count('$verified AND verified_label = predicted_label'),
+      'checked': await count('feedback IS NOT NULL'),
+      'correct': await count("feedback = 'correct'"),
     };
   }
 
