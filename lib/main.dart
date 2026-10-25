@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'screens/home_screen.dart';
+import 'theme/app_scroll_behavior.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 
@@ -25,6 +26,7 @@ class PinePalApp extends StatelessWidget {
           theme: buildTheme(Brightness.light),
           darkTheme: buildTheme(Brightness.dark),
           themeMode: mode,
+          scrollBehavior: const AppScrollBehavior(),
           // Status bar icons follow the theme on every screen, including the
           // ones without an app bar
           builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
