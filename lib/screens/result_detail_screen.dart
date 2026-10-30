@@ -290,6 +290,10 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                       '${scan.longitude.toStringAsFixed(4)}'
                 : 'GPS location unavailable',
           ),
+          if (scan.farmName != null)
+            _row(Icons.home_work_outlined, 'Farm: ${scan.farmName}'),
+          if (scan.municipality != null)
+            _row(Icons.map_outlined, 'Municipality: ${scan.municipality}'),
           _row(
             Icons.access_time,
             'Scanned on ${formatDateTime(scan.scannedAt)}',

@@ -2,14 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'screens/home_screen.dart';
+import 'services/app_settings.dart';
+import 'services/auth_controller.dart';
+import 'services/sync_controller.dart';
 import 'theme/app_scroll_behavior.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await ThemeController.load();
+  await Future.wait([
+    ThemeController.load(),
+    AppSettings.instance.load(),
+    AuthController.instance.load(),
+  ]);
   runApp(const PinePalApp());
+  SyncController.instance.init();
 }
 
 class PinePalApp extends StatelessWidget {

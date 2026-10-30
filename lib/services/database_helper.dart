@@ -23,7 +23,7 @@ class DatabaseHelper {
     final path = join(dbPath, fileName);
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _createDB,
       onUpgrade: upgrade,
     );
@@ -46,7 +46,9 @@ class DatabaseHelper {
         synced_at TEXT,
         notes TEXT,
         verified_label TEXT,
-        feedback TEXT
+        feedback TEXT,
+        municipality TEXT,
+        farm_name TEXT
       )
     ''');
   }
@@ -75,6 +77,10 @@ class DatabaseHelper {
         WHERE verified_label IS NOT NULL AND verified_label != ''
       ''');
     }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE scans ADD COLUMN municipality TEXT');
+      await db.execute('ALTER TABLE scans ADD COLUMN farm_name TEXT');
+    }
   }
 
   // CREATE
@@ -101,18 +107,20 @@ class DatabaseHelper {
     return ScanRecord.fromMap(rows.first);
   }
 
-  // UPDATE: the farmer can add or edit a note (pass null to clear it)
+  // UPDATE: the farmer can add or edit a note (pass null to clear it).
+  // The scan goes back to Pending, so the change is uploaded on the next sync.
   Future<void> updateNotes(String scanUuid, String? notes) async {
     final db = await database;
     await db.update(
       'scans',
-      {'notes': notes},
+      {'notes': notes, 'synced': 0},
       where: 'scan_uuid = ?',
       whereArgs: [scanUuid],
     );
   }
 
-  // UPDATE: the farmer's feedback and notes (pass null to clear any of them)
+  // UPDATE: the farmer's feedback and notes (pass null to clear any of them).
+  // The scan goes back to Pending, so the change is uploaded on the next sync.
   Future<void> updateFeedback(
     String scanUuid, {
     ScanFeedback? feedback,
@@ -126,6 +134,7 @@ class DatabaseHelper {
         'feedback': feedback?.name,
         'verified_label': verifiedLabel,
         'notes': notes,
+        'synced': 0,
       },
       where: 'scan_uuid = ?',
       whereArgs: [scanUuid],
@@ -172,6 +181,15 @@ class DatabaseHelper {
       orderBy: 'scanned_at ASC',
     );
     return rows.map((row) => ScanRecord.fromMap(row)).toList();
+  }
+
+  // How many scans are waiting to be uploaded
+  Future<int> countUnsynced() async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) AS c FROM scans WHERE synced = 0',
+    );
+    return Sqflite.firstIntValue(rows) ?? 0;
   }
 
   Future<void> markSynced(String scanUuid) async {

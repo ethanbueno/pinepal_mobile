@@ -31,6 +31,11 @@ class ScanRecord {
 
   final String? notes;
 
+  // Where the scan was taken, from the farm details in Settings. They go to the web
+  // dashboard when syncing, where its filters and map use them.
+  final String? municipality;
+  final String? farmName;
+
   // Null until the farmer gives feedback on the scan screen.
   final ScanFeedback? feedback;
 
@@ -52,6 +57,8 @@ class ScanRecord {
     this.synced = false,
     this.syncedAt,
     this.notes,
+    this.municipality,
+    this.farmName,
     this.feedback,
     this.verifiedLabel,
   });
@@ -80,6 +87,8 @@ class ScanRecord {
       'synced': synced ? 1 : 0,
       'synced_at': syncedAt?.toIso8601String(),
       'notes': notes,
+      'municipality': municipality,
+      'farm_name': farmName,
       'feedback': feedback?.name,
       'verified_label': verifiedLabel,
     };
@@ -102,6 +111,8 @@ class ScanRecord {
           ? null
           : DateTime.parse(map['synced_at'] as String),
       notes: map['notes'] as String?,
+      municipality: map['municipality'] as String?,
+      farmName: map['farm_name'] as String?,
       feedback: ScanFeedback.values.asNameMap()[map['feedback']],
       verifiedLabel: map['verified_label'] as String?,
     );
@@ -131,6 +142,8 @@ class ScanRecord {
       synced: synced,
       syncedAt: syncedAt,
       notes: clearNotes ? null : (notes ?? this.notes),
+      municipality: municipality,
+      farmName: farmName,
       feedback: clearFeedback ? null : (feedback ?? this.feedback),
       verifiedLabel: clearVerifiedLabel
           ? null

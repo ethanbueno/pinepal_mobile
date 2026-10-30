@@ -181,6 +181,108 @@ void main() {
     },
   );
 
+  test(
+    'upgrading a v3 database adds the farm columns and keeps scans',
+    () async {
+      final path = '${await databaseFactory.getDatabasesPath()}/v3_test.db';
+      await databaseFactory.deleteDatabase(path);
+
+      // A database as release 3 created it: feedback, but no farm details yet
+      final v3 = await databaseFactory.openDatabase(
+        path,
+        options: OpenDatabaseOptions(
+          version: 3,
+          onCreate: (db, version) => db.execute('''
+          CREATE TABLE scans (
+            scan_uuid TEXT PRIMARY KEY, predicted_label TEXT NOT NULL,
+            confidence REAL NOT NULL, second_label TEXT,
+            second_confidence REAL, image_source TEXT NOT NULL,
+            image_path TEXT NOT NULL, latitude REAL NOT NULL,
+            longitude REAL NOT NULL, scanned_at TEXT NOT NULL,
+            synced INTEGER NOT NULL DEFAULT 0, synced_at TEXT, notes TEXT,
+            verified_label TEXT, feedback TEXT
+          )
+        '''),
+        ),
+      );
+      await v3.insert('scans', {
+        'scan_uuid': 'kept',
+        'predicted_label': 'Crown_Rot',
+        'confidence': 0.9,
+        'image_source': 'Camera',
+        'image_path': '/p.jpg',
+        'latitude': 0.0,
+        'longitude': 0.0,
+        'scanned_at': '2026-10-01T08:00:00.000',
+        'synced': 1,
+        'feedback': 'correct',
+      });
+      await v3.close();
+
+      // Opens it again with the app's real upgrade code
+      final v4 = await databaseFactory.openDatabase(
+        path,
+        options: OpenDatabaseOptions(
+          version: 4,
+          onUpgrade: DatabaseHelper.upgrade,
+        ),
+      );
+      final row = (await v4.query('scans')).single;
+      expect(row['scan_uuid'], 'kept');
+      expect(row['feedback'], 'correct');
+      expect(row['synced'], 1);
+      expect(row['municipality'], isNull);
+      expect(row['farm_name'], isNull);
+
+      // The new columns can be written and read back as a ScanRecord
+      await v4.update('scans', {
+        'municipality': 'Echague',
+        'farm_name': 'Bueno Farm',
+      });
+      final scan = ScanRecord.fromMap((await v4.query('scans')).single);
+      expect(scan.municipality, 'Echague');
+      expect(scan.farmName, 'Bueno Farm');
+      await v4.close();
+      await databaseFactory.deleteDatabase(path);
+    },
+  );
+
+  test('farm details are saved with the scan', () async {
+    await db.insertScan(
+      ScanRecord(
+        scanUuid: 'farm-1',
+        predictedLabel: 'Crown_Rot',
+        confidence: 0.9,
+        imageSource: 'Camera',
+        imagePath: '/p.jpg',
+        latitude: 0,
+        longitude: 0,
+        scannedAt: DateTime(2026, 10, 18),
+        municipality: 'Echague',
+        farmName: 'Bueno Farm',
+      ),
+    );
+
+    final saved = (await db.getScan('farm-1'))!;
+    expect(saved.municipality, 'Echague');
+    expect(saved.farmName, 'Bueno Farm');
+    await db.deleteScan('farm-1');
+  });
+
+  test('changing a synced scan puts it back to pending', () async {
+    await db.insertScan(makeScan('sync-1'));
+    await db.markSynced('sync-1');
+    expect(await db.countUnsynced(), 0);
+
+    await db.updateNotes('sync-1', 'edited');
+    expect(await db.countUnsynced(), 1);
+
+    await db.markSynced('sync-1');
+    await db.updateFeedback('sync-1', feedback: ScanFeedback.correct);
+    expect((await db.getScan('sync-1'))!.synced, false);
+    await db.deleteScan('sync-1');
+  });
+
   test('upgrading a v1 database keeps scans and adds verified_label', () async {
     final path = '${await databaseFactory.getDatabasesPath()}/upgrade_test.db';
     await databaseFactory.deleteDatabase(path);

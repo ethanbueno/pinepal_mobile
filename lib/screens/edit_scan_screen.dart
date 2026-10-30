@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/scan_record.dart';
 import '../services/database_helper.dart';
 import '../services/label_service.dart';
+import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
 
 // The feedback screen. The prediction and confidence are read-only because
@@ -60,6 +61,7 @@ class _EditScanScreenState extends State<EditScanScreen> {
         verifiedLabel: label,
         notes: notes.isEmpty ? null : notes,
       );
+      SyncController.instance.onLocalChange();
       if (!mounted) return;
       Navigator.pop(context, true);
     } catch (e) {

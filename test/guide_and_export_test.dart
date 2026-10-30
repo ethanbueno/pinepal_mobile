@@ -55,8 +55,9 @@ void main() {
       expect(row, contains('0.9123'));
       expect(row, contains('"Block 3, ""wet"" day"'));
       expect(row, endsWith('scan_1.jpg'));
-      // feedback blank, is_verified = 0, is_correct blank, has_gps = 0
-      expect(row, contains(',,0,,0,,,Camera,'));
+      // feedback blank, is_verified = 0, is_correct blank, has_gps = 0, no GPS,
+      // no municipality or farm name
+      expect(row, contains(',,0,,0,,,,,Camera,'));
     },
   );
 

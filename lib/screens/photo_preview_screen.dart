@@ -6,9 +6,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/scan_record.dart';
+import '../services/app_settings.dart';
 import '../services/classifier_service.dart';
 import '../services/database_helper.dart';
 import '../services/location_service.dart';
+import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
 import 'result_detail_screen.dart';
 
@@ -73,7 +75,9 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       await scansDir.create(recursive: true);
     }
     final fileName = 'scan_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final saved = await File(widget.imagePath).copy('${scansDir.path}/$fileName');
+    final saved = await File(
+      widget.imagePath,
+    ).copy('${scansDir.path}/$fileName');
     return saved.path;
   }
 
@@ -82,20 +86,24 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
     try {
       final imagePath = await _persistImage();
       final position = await LocationService.getCurrentLocation();
+      final settings = AppSettings.instance;
 
       final record = ScanRecord(
-          scanUuid: const Uuid().v4(),
-          predictedLabel: result.best.label,
-          confidence: result.best.confidence,
-          secondLabel: result.second?.label,
-          secondConfidence: result.second?.confidence,
-          imageSource: widget.imageSource,
-          imagePath: imagePath,
-          latitude: position.latitude,
-          longitude: position.longitude,
-          scannedAt: DateTime.now(),
+        scanUuid: const Uuid().v4(),
+        predictedLabel: result.best.label,
+        confidence: result.best.confidence,
+        secondLabel: result.second?.label,
+        secondConfidence: result.second?.confidence,
+        imageSource: widget.imageSource,
+        imagePath: imagePath,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        scannedAt: DateTime.now(),
+        municipality: settings.municipality,
+        farmName: settings.farmName.isEmpty ? null : settings.farmName,
       );
       await DatabaseHelper.instance.insertScan(record);
+      SyncController.instance.onLocalChange();
       if (mounted) setState(() => _savedScan = record);
     } catch (e) {
       if (mounted) setState(() => _error = 'Could not save the scan: $e');
@@ -267,10 +275,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       ],
 
       const SizedBox(height: 16),
-      Text(
-        'Top 3 guesses',
-        style: TextStyle(color: context.colors.textMuted),
-      ),
+      Text('Top 3 guesses', style: TextStyle(color: context.colors.textMuted)),
       const SizedBox(height: 8),
       for (final p in result.topPredictions)
         Padding(
