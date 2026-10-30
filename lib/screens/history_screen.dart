@@ -6,7 +6,9 @@ import '../models/scan_record.dart';
 import '../services/database_helper.dart';
 import '../services/export_service.dart';
 import '../services/label_service.dart';
+import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
+import '../widgets/tile_card.dart';
 import '../widgets/disease_badge.dart';
 import '../utils/format.dart';
 import 'edit_scan_screen.dart';
@@ -43,6 +45,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _scans = DatabaseHelper.instance.getAllScans();
     });
     _loadSummary();
+    SyncController.instance.onLocalChange();
   }
 
   void _showMessage(String text) {
@@ -368,13 +371,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildTile(ScanRecord scan) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: context.colors.line),
-      ),
+    return TileCard(
       child: ListTile(
         onTap: () => _openDetail(scan),
         leading: ClipRRect(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/remediation_protocol.dart';
 import '../services/protocol_service.dart';
 import '../theme/app_colors.dart';
+import '../widgets/tile_card.dart';
 import '../widgets/protocol_cards.dart';
 
 // Guide tab: every disease the app knows, with how to recognise and treat it.
@@ -38,13 +39,7 @@ class _GuideScreenState extends State<GuideScreen> {
             itemCount: protocols.length,
             itemBuilder: (context, index) {
               final protocol = protocols[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: context.colors.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.card),
-                  border: Border.all(color: context.colors.line),
-                ),
+              return TileCard(
                 child: ListTile(
                   title: Text(
                     protocol.name,

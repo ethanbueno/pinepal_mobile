@@ -88,6 +88,33 @@ ThemeData buildTheme(Brightness brightness) {
       systemOverlayStyle: overlayStyleFor(brightness),
     ),
 
+    // Manual / Automatic and similar choices
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: SegmentedButton.styleFrom(
+        backgroundColor: Colors.transparent,
+        foregroundColor: p.textMuted,
+        selectedBackgroundColor: p.accent.withValues(alpha: 0.15),
+        selectedForegroundColor: p.accentText,
+        side: BorderSide(color: p.line),
+        shape: controlShape,
+        textStyle: buttonText,
+      ),
+    ),
+
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected) ? p.onAccent : p.textMuted,
+      ),
+      trackColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected) ? p.accent : p.surface2,
+      ),
+      trackOutlineColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected) ? p.accent : p.line,
+      ),
+    ),
+
     // Main buttons: amber fill, dark text
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
@@ -155,6 +182,18 @@ ThemeData buildTheme(Brightness brightness) {
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: p.text,
+      ),
+    ),
+
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: p.surface,
+      modalBackgroundColor: p.surface,
+      surfaceTintColor: Colors.transparent,
+      showDragHandle: true,
+      dragHandleColor: p.line,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: p.line),
       ),
     ),
 

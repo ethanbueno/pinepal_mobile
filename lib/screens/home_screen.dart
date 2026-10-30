@@ -5,11 +5,12 @@ import 'package:flutter/material.dart';
 import '../models/scan_record.dart';
 import '../services/database_helper.dart';
 import '../theme/app_colors.dart';
+import '../widgets/tile_card.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/disease_badge.dart';
-import 'coming_soon_screen.dart';
 import 'guide_screen.dart';
 import 'history_screen.dart';
+import 'profile_screen.dart';
 import 'result_detail_screen.dart';
 import 'scanner_screen.dart';
 
@@ -37,11 +38,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 2:
         return const GuideScreen();
       default:
-        return const ComingSoonScreen(
-          title: 'Profile',
-          icon: Icons.person,
-          message: 'Login and sync settings are coming soon.',
-        );
+        return const ProfileScreen();
     }
   }
 
@@ -290,13 +287,7 @@ class _HomeTabState extends State<_HomeTab> {
               }
               return Column(
                 children: scans.map((scan) {
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
-                      color: context.colors.surface,
-                      borderRadius: BorderRadius.circular(AppRadius.card),
-                      border: Border.all(color: context.colors.line),
-                    ),
+                  return TileCard(
                     child: ListTile(
                       onTap: () =>
                           Navigator.push(
