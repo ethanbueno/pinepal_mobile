@@ -1,6 +1,7 @@
 {
   "No Disease": {
     "name": "No Disease Detected",
+    "image": "assets/images/diseases/healthy.jpg",
     "scientific_name": "Ananas comosus",
     "severity": "None",
     "pathogen_type": "No pathogen detected",
@@ -23,6 +24,7 @@
   },
   "Crown Rot": {
     "name": "Crown Rot",
+    "image": "assets/images/diseases/crown_rot.jpg",
     "scientific_name": "Ceratocystis paradoxa (Thielaviopsis paradoxa)",
     "severity": "High",
     "pathogen_type": "Fungus",
@@ -47,6 +49,7 @@
   },
   "Fruit Rot": {
     "name": "Fruit Rot",
+    "image": "assets/images/diseases/fruit_rot.jpg",
     "scientific_name": "Various fungi and bacteria",
     "severity": "High",
     "pathogen_type": "Fungus or bacterium",
@@ -71,6 +74,7 @@
   },
   "Fruit Fasciation": {
     "name": "Fruit Fasciation",
+    "image": "assets/images/diseases/fruit_fasciation.jpg",
     "scientific_name": "Physiological disorder (not caused by a pathogen)",
     "severity": "Low",
     "pathogen_type": "Physiological disorder",
@@ -94,6 +98,7 @@
   },
   "Mealybug Wilt": {
     "name": "Mealybug Wilt of Pineapple",
+    "image": "assets/images/diseases/mealybug_wilt.jpg",
     "scientific_name": "Pineapple mealybug wilt-associated virus",
     "severity": "High",
     "pathogen_type": "Virus (mealybug transmitted)",
@@ -118,6 +123,7 @@
   },
   "Multiple Crown": {
     "name": "Multiple Crown",
+    "image": "assets/images/diseases/multiple_crown.jpg",
     "scientific_name": "Physiological disorder (not caused by a pathogen)",
     "severity": "Low",
     "pathogen_type": "Physiological disorder",

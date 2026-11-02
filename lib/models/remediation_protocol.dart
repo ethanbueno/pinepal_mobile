@@ -3,6 +3,8 @@ class RemediationProtocol {
   final String scientificName;
   final String severity;
   final String pathogenType;
+  // Bundled photo of the disease, null when there is none.
+  final String? image;
   final String description;
   final List<String> symptoms;
   final List<String> remediationSteps;
@@ -13,6 +15,7 @@ class RemediationProtocol {
     required this.scientificName,
     required this.severity,
     required this.pathogenType,
+    this.image,
     required this.description,
     required this.symptoms,
     required this.remediationSteps,
@@ -25,6 +28,7 @@ class RemediationProtocol {
       scientificName: json['scientific_name'] as String? ?? 'N/A',
       severity: json['severity'] as String? ?? 'Medium',
       pathogenType: json['pathogen_type'] as String? ?? 'Unknown',
+      image: json['image'] as String?,
       description: json['description'] as String? ?? 'No description available.',
       symptoms: (json['symptoms'] as List<dynamic>?)
               ?.map((e) => e.toString())
