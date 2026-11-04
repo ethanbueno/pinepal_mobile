@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../services/api_client.dart';
+import '../services/auth_controller.dart';
+import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/labeled_field.dart';
 
 // Create a farmer account (the server only allows farmers to sign up; officers
-// and admins are created by an admin on the web). Pops with the username.
+// and admins are created by an admin on the web), then sign in with it. If
+// this phone already has its own farmer ID, the new account keeps it and its
+// scans. Pops with true when signed in.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -51,13 +55,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _error = null;
     });
     try {
-      await ApiClient().register(
+      final api = ApiClient();
+      final deviceToken = AuthController.instance.phoneFarmer?.token;
+      await api.register(
         fullName: fullName,
         username: username,
         password: _password.text,
+        deviceToken: deviceToken,
       );
+      final session = await api.login(
+        username,
+        _password.text,
+        deviceToken: deviceToken,
+      );
+      await AuthController.instance.signIn(session);
+      SyncController.instance.maybeAutoSync();
       if (!mounted) return;
-      Navigator.pop(context, username);
+      Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {

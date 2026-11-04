@@ -127,8 +127,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Scans stay on this phone. Sign in to sync them to the '
-                      'PinePal dashboard.',
+                      _auth.phoneFarmer == null
+                          ? 'Scans stay on this phone. Sign in to sync them '
+                                'to the PinePal dashboard.'
+                          : 'This phone syncs as farmer ID '
+                                '${_auth.phoneFarmer!.farmerId}. Sign in or '
+                                'create an account to connect it and its scans '
+                                'to you.',
                       style: TextStyle(
                         color: context.colors.textMuted,
                         fontSize: 13,
@@ -185,6 +190,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       fontSize: 13,
                     ),
                   ),
+                  if (user.farmerId != null)
+                    Text(
+                      'Farmer ID ${user.farmerId}',
+                      style: TextStyle(
+                        color: context.colors.textMuted,
+                        fontSize: 13,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -268,15 +281,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final n = _sync.pending;
     final waiting = '$n ${n == 1 ? 'scan is' : 'scans are'} waiting';
     if (!_auth.isSignedIn) {
+      final phone = _auth.phoneFarmer;
+      if (phone != null && _settings.syncMode == SyncMode.automatic) {
+        return n == 0
+            ? 'All scans are synced as farmer ID ${phone.farmerId}.'
+            : '$waiting to sync as farmer ID ${phone.farmerId}.';
+      }
       return n == 0
-          ? 'Sign in to sync your scans.'
-          : '$waiting. Sign in to sync them.';
+          ? 'Tap Sync now to sign in or create an account.'
+          : '$waiting. Tap Sync now to sign in or create an account.';
     }
     return n == 0 ? 'All scans are synced.' : '$waiting to sync.';
   }
 
   Widget _buildSync() {
-    final canSync = _auth.isSignedIn && !_sync.syncing && _sync.pending > 0;
+    // Signed out, Sync now opens sign in (with create account), which connects
+    // this phone's farmer ID and its scans to the account
+    final signedIn = _auth.isSignedIn;
+    final canSync = !_sync.syncing && (!signedIn || _sync.pending > 0);
     final last = _sync.lastSyncedAt;
     final automatic = _settings.syncMode == SyncMode.automatic;
 
@@ -314,7 +336,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   )
                 : const Icon(Icons.sync),
             label: Text(_sync.syncing ? 'Syncing...' : 'Sync now'),
-            onPressed: canSync ? _sync.syncNow : null,
+            onPressed: !canSync
+                ? null
+                : signedIn
+                ? _sync.syncNow
+                : _openLogin,
           ),
         ),
         if (_sync.message != null) ...[

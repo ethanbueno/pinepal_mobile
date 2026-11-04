@@ -42,11 +42,18 @@ class ApiClient {
   static const _uploadTimeout = Duration(seconds: 60);
 
   // Same login as the web, but the token lasts 30 days, so a farmer who scans
-  // offline for days can still sync without signing in again.
-  Future<AuthSession> login(String username, String password) async {
+  // offline for days can still sync without signing in again. With the phone's
+  // own farmer ID token, the server connects that farmer ID and its scans to
+  // the account (or moves them into the farmer ID the account already has).
+  Future<AuthSession> login(
+    String username,
+    String password, {
+    String? deviceToken,
+  }) async {
     final json = await _sendJson('POST', '/api/mobile/login', {
       'username': username,
       'password': password,
+      'device_token': ?deviceToken,
     });
     return AuthSession(
       token: json['access_token'] as String,
@@ -54,18 +61,26 @@ class ApiClient {
     );
   }
 
-  // Sign up only ever creates farmer accounts (the server enforces it)
+  // Sign up only ever creates farmer accounts (the server enforces it). With
+  // the phone's own farmer ID token, the new account keeps that farmer ID.
   Future<void> register({
     required String fullName,
     required String username,
     required String password,
+    String? deviceToken,
   }) async {
     await _sendJson('POST', '/api/auth/register', {
       'full_name': fullName,
       'username': username,
       'password': password,
       'role': 'farmer',
+      'device_token': ?deviceToken,
     });
+  }
+
+  // Gives this phone its own farmer ID, for syncing before anyone signs in
+  Future<PhoneFarmer> registerPhone() async {
+    return PhoneFarmer.fromJson(await _sendJson('POST', '/api/mobile/device'));
   }
 
   // Sends one scan with its photo. The server uses scan_uuid to tell scans

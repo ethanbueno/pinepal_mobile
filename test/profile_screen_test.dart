@@ -57,7 +57,7 @@ void main() {
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  testWidgets('signed out: offers sign in and cannot sync', (tester) async {
+  testWidgets('signed out: Sync now opens sign in', (tester) async {
     await showProfile(
       tester,
       auth: AuthController(store: MemorySessionStore()),
@@ -68,11 +68,52 @@ void main() {
     expect(find.widgetWithText(ElevatedButton, 'Sign in'), findsOneWidget);
     expect(find.text('Log out'), findsNothing);
 
-    // Syncing needs an account
-    final syncNow = tester.widget<ElevatedButton>(
-      find.widgetWithText(ElevatedButton, 'Sync now'),
+    // Signing in (or creating an account) is how a signed-out phone syncs
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Sync now'));
+    await tester.pumpAndSettle();
+    expect(find.text("Don't have an account? Sign up"), findsOneWidget);
+  });
+
+  testWidgets('signed out: shows the farmer ID this phone syncs as', (
+    tester,
+  ) async {
+    final auth = AuthController(store: MemorySessionStore());
+    await auth.setPhoneFarmer(
+      const PhoneFarmer(farmerId: 'F070', token: 'device'),
     );
-    expect(syncNow.onPressed, isNull);
+    final settings = AppSettings();
+    await settings.setSyncMode(SyncMode.automatic);
+    await showProfile(tester, auth: auth, settings: settings);
+
+    expect(find.textContaining('syncs as farmer ID F070'), findsOneWidget);
+    // "All scans are synced as..." or "2 scans are waiting to sync as..."
+    expect(
+      find.textContaining(RegExp(r'sync(ed)? as farmer ID F070\.$')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('signing in forgets the phone farmer ID', (tester) async {
+    final auth = AuthController(store: MemorySessionStore());
+    await auth.setPhoneFarmer(
+      const PhoneFarmer(farmerId: 'F070', token: 'device'),
+    );
+    await auth.signIn(
+      const AuthSession(
+        token: 't',
+        user: AuthUser(
+          id: 7,
+          fullName: 'Juan Dela Cruz',
+          username: 'juan',
+          role: 'farmer',
+          farmerId: 'F069',
+        ),
+      ),
+    );
+    expect(auth.phoneFarmer, isNull);
+
+    await showProfile(tester, auth: auth, settings: AppSettings());
+    expect(find.text('Farmer ID F069'), findsOneWidget);
   });
 
   testWidgets('the tab is about the farmer, preferences are in Settings', (

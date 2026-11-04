@@ -11,6 +11,9 @@ import 'database_helper.dart';
 import 'sync_service.dart';
 
 // Decides when scans are sent and tells the screens what is going on.
+// Signed in, scans go to the account's farmer ID. Signed out, automatic mode
+// sends them under this phone's own farmer ID (made on the first such sync);
+// signing in or up later connects that farmer ID to the account.
 // Manual mode: only when the farmer taps "Sync now".
 // Automatic mode: by itself when the app starts, when a connection comes back,
 // and after a scan is saved or edited (on Wi-Fi only, unless turned off).
@@ -84,14 +87,10 @@ class SyncController extends ChangeNotifier {
   // The "Sync now" button
   Future<void> syncNow() => _run();
 
-  // Does nothing unless automatic mode is on, someone is signed in, the
-  // connection is allowed and something is waiting.
+  // Does nothing unless automatic mode is on, the connection is allowed and
+  // something is waiting. Works signed out too, under the phone's farmer ID.
   Future<void> maybeAutoSync() async {
-    if (_syncing ||
-        _settings.syncMode != SyncMode.automatic ||
-        !_auth.isSignedIn) {
-      return;
-    }
+    if (_syncing || _settings.syncMode != SyncMode.automatic) return;
     if (!await _connectionAllowed()) return;
     if (await refreshPending() == 0) return;
     await _run();
@@ -115,24 +114,24 @@ class SyncController extends ChangeNotifier {
 
   Future<void> _run() async {
     if (_syncing) return;
-    final token = _auth.token;
-    if (token == null) {
-      _setMessage('Sign in to sync your scans.', isError: true);
-      return;
-    }
-
     _syncing = true;
     _message = null;
     notifyListeners();
 
     try {
+      final signedIn = _auth.isSignedIn;
+      final token = signedIn ? _auth.token! : (await _phoneFarmer()).token;
       final result = await SyncService(
         api: _api,
         db: _db,
         settings: _settings,
       ).syncPending(token: token);
 
-      if (result.sessionExpired) await _auth.signOut();
+      if (result.sessionExpired) {
+        // Signed out: the phone's farmer ID was connected to an account, so a
+        // new one is made next time (or the farmer signs in)
+        signedIn ? await _auth.signOut() : await _auth.setPhoneFarmer(null);
+      }
       if (result.uploaded > 0) await _rememberLastSync();
       _message = result.summary;
       _messageIsError = !result.ok;
@@ -145,6 +144,15 @@ class SyncController extends ChangeNotifier {
     }
   }
 
+  // This phone's own farmer ID, asked from the server the first time
+  Future<PhoneFarmer> _phoneFarmer() async {
+    final existing = _auth.phoneFarmer;
+    if (existing != null) return existing;
+    final phone = await _api.registerPhone();
+    await _auth.setPhoneFarmer(phone);
+    return phone;
+  }
+
   Future<void> _rememberLastSync() async {
     _lastSyncedAt = DateTime.now();
     try {
@@ -153,12 +161,6 @@ class SyncController extends ChangeNotifier {
     } catch (_) {
       // shown for this launch only
     }
-  }
-
-  void _setMessage(String text, {required bool isError}) {
-    _message = text;
-    _messageIsError = isError;
-    notifyListeners();
   }
 
   @override

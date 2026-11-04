@@ -9,12 +9,15 @@ class AuthUser {
   final String fullName;
   final String username;
   final String role; // admin, officer or farmer
+  final String?
+  farmerId; // the account's row in the farmers table (F069), farmers only
 
   const AuthUser({
     required this.id,
     required this.fullName,
     required this.username,
     required this.role,
+    this.farmerId,
   });
 
   // Same labels as the web dashboard (src/utils/roles.js)
@@ -46,6 +49,7 @@ class AuthUser {
       fullName: json['full_name'] as String? ?? '',
       username: json['username'] as String? ?? '',
       role: json['role'] as String? ?? 'farmer',
+      farmerId: json['farmer_id'] as String?,
     );
   }
 
@@ -54,6 +58,27 @@ class AuthUser {
     'full_name': fullName,
     'username': username,
     'role': role,
+    'farmer_id': farmerId,
+  };
+}
+
+// A phone used without an account gets its own farmer ID on the server (F070),
+// so its scans can sync before anyone signs in. Signing in or creating an
+// account on this phone connects that farmer ID and its scans to the account.
+class PhoneFarmer {
+  final String farmerId;
+  final String token; // only uploads scans for this farmer ID
+
+  const PhoneFarmer({required this.farmerId, required this.token});
+
+  factory PhoneFarmer.fromJson(Map<String, dynamic> json) => PhoneFarmer(
+    farmerId: json['farmer_id'] as String,
+    token: json['device_token'] as String,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'farmer_id': farmerId,
+    'device_token': token,
   };
 }
 
@@ -74,7 +99,9 @@ abstract class SessionStore {
 // The token is a password for the account, so it goes in the phone's secure
 // storage (Keystore on Android, Keychain on iOS), not in plain preferences.
 class SecureSessionStore implements SessionStore {
-  static const _key = 'session';
+  SecureSessionStore([this._key = 'session']);
+
+  final String _key;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   @override
@@ -101,46 +128,78 @@ class MemorySessionStore implements SessionStore {
   Future<void> write(String? value) async => this.value = value;
 }
 
-// Who is signed in. Scanning works without an account; signing in is only
-// needed to sync scans to the server.
+// Who is signed in, and this phone's own farmer ID for syncing without an
+// account. Scanning works without an account.
 class AuthController extends ChangeNotifier {
-  AuthController({SessionStore? store})
-    : _store = store ?? SecureSessionStore();
+  AuthController({SessionStore? store, SessionStore? phoneStore})
+    : _store = store ?? SecureSessionStore(),
+      // tests that pass a store keep the phone's farmer ID in memory too
+      _phoneStore =
+          phoneStore ??
+          (store == null
+              ? SecureSessionStore('phone_farmer')
+              : MemorySessionStore());
 
   static final instance = AuthController();
 
   final SessionStore _store;
+  final SessionStore _phoneStore;
   AuthSession? _session;
+  PhoneFarmer? _phone;
 
   AuthSession? get session => _session;
   AuthUser? get user => _session?.user;
   String? get token => _session?.token;
   bool get isSignedIn => _session != null;
+  PhoneFarmer? get phoneFarmer => _phone;
 
   Future<void> load() async {
     try {
       final raw = await _store.read();
-      if (raw == null) return;
-      final json = jsonDecode(raw) as Map<String, dynamic>;
-      _session = AuthSession(
-        token: json['token'] as String,
-        user: AuthUser.fromJson(json['user'] as Map<String, dynamic>),
-      );
-      notifyListeners();
+      if (raw != null) {
+        final json = jsonDecode(raw) as Map<String, dynamic>;
+        _session = AuthSession(
+          token: json['token'] as String,
+          user: AuthUser.fromJson(json['user'] as Map<String, dynamic>),
+        );
+      }
     } catch (_) {
       // unreadable or missing: the farmer just signs in again
     }
+    try {
+      final raw = await _phoneStore.read();
+      if (raw != null) {
+        _phone = PhoneFarmer.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      }
+    } catch (_) {
+      // the phone gets a new farmer ID on its next sync
+    }
+    notifyListeners();
   }
 
+  // Signing in connects this phone's farmer ID to the account (the server did
+  // that during login), so the phone no longer needs its own.
   Future<void> signIn(AuthSession session) async {
     _session = session;
-    notifyListeners();
+    await setPhoneFarmer(null);
     try {
       await _store.write(
         jsonEncode({'token': session.token, 'user': session.user.toJson()}),
       );
     } catch (_) {
       // signed in for this launch even if it could not be remembered
+    }
+  }
+
+  Future<void> setPhoneFarmer(PhoneFarmer? phone) async {
+    _phone = phone;
+    notifyListeners();
+    try {
+      await _phoneStore.write(
+        phone == null ? null : jsonEncode(phone.toJson()),
+      );
+    } catch (_) {
+      // kept for this launch only
     }
   }
 

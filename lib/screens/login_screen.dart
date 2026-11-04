@@ -43,7 +43,14 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      final session = await ApiClient().login(username, _password.text);
+      // This phone's own farmer ID (if it synced before sign in) joins the
+      // account: it becomes the account's farmer ID, or its scans move into
+      // the one the account already has
+      final session = await ApiClient().login(
+        username,
+        _password.text,
+        deviceToken: AuthController.instance.phoneFarmer?.token,
+      );
       await AuthController.instance.signIn(session);
       // Scans waiting from before sign-in go out now if automatic sync is on
       SyncController.instance.maybeAutoSync();
@@ -58,20 +65,14 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // Signing up also signs in, so this screen is done too
   Future<void> _openRegister() async {
-    final username = await Navigator.push<String>(
+    final signedIn = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (context) => const RegisterScreen()),
     );
-    if (username == null || !mounted) return;
-    setState(() {
-      _username.text = username;
-      _password.clear();
-      _error = null;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Account created. Sign in to continue.')),
-    );
+    if (signedIn != true || !mounted) return;
+    Navigator.pop(context, true);
   }
 
   @override
