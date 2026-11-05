@@ -58,62 +58,73 @@ class _ScanHeatMapState extends State<ScanHeatMap> {
     final height = widget.height;
     final spots = _groupBySpot(scans);
 
-    final map = FlutterMap(
-      options: MapOptions(
-        backgroundColor: context.colors.surface2,
-        // no scans in Echague: open on the town; scans at one spot: zoom in on them
-        initialCenter: scans.isEmpty ? lockedAreaCenter : _center(scans),
-        initialZoom: scans.isEmpty ? lockedAreaZoom : 16,
-        minZoom: lockedAreaMinZoom,
-        maxZoom: lockedAreaMaxZoom,
-        cameraConstraint: CameraConstraint.contain(bounds: lockedAreaBounds),
-        initialCameraFit: scans.isEmpty || _fitsOnePlace(scans)
-            ? null
-            : CameraFit.coordinates(
-                coordinates: [
-                  for (final scan in scans)
-                    LatLng(scan.latitude, scan.longitude),
-                ],
-                padding: const EdgeInsets.all(40),
-                maxZoom: 17,
+    // The size is needed to know how far out the map may zoom: no further
+    // than the whole of Echague, like on the website
+    final map = LayoutBuilder(
+      builder: (context, constraints) => FlutterMap(
+        options: MapOptions(
+          // painted outside Echague too, so only the town is ever seen
+          backgroundColor: context.colors.canvas,
+          // opens on the whole town, like the Disease Map on the web
+          initialCenter: lockedAreaCenter,
+          initialZoom: zoomToFitLockedArea(constraints.biggest),
+          minZoom: zoomToFitLockedArea(constraints.biggest),
+          maxZoom: lockedAreaMaxZoom,
+          cameraConstraint: const LockToArea(),
+          interactionOptions: InteractionOptions(
+            // turning the map around only confuses, north stays up
+            flags: interactive
+                ? InteractiveFlag.all & ~InteractiveFlag.rotate
+                : InteractiveFlag.none,
+          ),
+        ),
+        children: [
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            // OpenStreetMap asks every app to say who it is
+            userAgentPackageName: 'com.example.pinepal_mobile',
+            errorTileCallback: _onTileError,
+          ),
+          PolygonLayer(
+            polygons: [
+              // everything outside Echague is painted over with the page color
+              Polygon(
+                points: maskOutline,
+                holePointsList: const [lockedAreaOutline],
+                color: context.colors.canvas,
               ),
-        interactionOptions: InteractionOptions(
-          // turning the map around only confuses, north stays up
-          flags: interactive
-              ? InteractiveFlag.all & ~InteractiveFlag.rotate
-              : InteractiveFlag.none,
-        ),
-      ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          // OpenStreetMap asks every app to say who it is
-          userAgentPackageName: 'com.example.pinepal_mobile',
-          errorTileCallback: _onTileError,
-        ),
-        CircleLayer(
-          circles: [
-            for (final scan in scans) ...[
-              _heatCircle(context, scan, _outerRadius, 0.12),
-              _heatCircle(context, scan, _innerRadius, 0.22),
+              // the town border, in the same amber as the web map
+              Polygon(
+                points: lockedAreaOutline,
+                borderColor: context.colors.accent,
+                borderStrokeWidth: 3,
+              ),
             ],
-          ],
-        ),
-        MarkerLayer(
-          markers: [
-            for (final spot in spots)
-              Marker(
-                point: spot.point,
-                width: 30,
-                height: 30,
-                child: _SpotDot(spot: spot),
-              ),
-          ],
-        ),
-        const SimpleAttributionWidget(
-          source: Text('OpenStreetMap contributors'),
-        ),
-      ],
+          ),
+          CircleLayer(
+            circles: [
+              for (final scan in scans) ...[
+                _heatCircle(context, scan, _outerRadius, 0.12),
+                _heatCircle(context, scan, _innerRadius, 0.22),
+              ],
+            ],
+          ),
+          MarkerLayer(
+            markers: [
+              for (final spot in spots)
+                Marker(
+                  point: spot.point,
+                  width: 30,
+                  height: 30,
+                  child: _SpotDot(spot: spot),
+                ),
+            ],
+          ),
+          const SimpleAttributionWidget(
+            source: Text('OpenStreetMap contributors'),
+          ),
+        ],
+      ),
     );
 
     final mapWithNotice = Stack(
@@ -219,33 +230,6 @@ List<_Spot> _groupBySpot(List<DashboardScan> scans) {
         .add(scan);
   }
   return spots.values.toList();
-}
-
-// Middle of all the scans, used when they are all at about one place
-LatLng _center(List<DashboardScan> scans) {
-  if (scans.isEmpty) return const LatLng(0, 0);
-  var lat = 0.0;
-  var lng = 0.0;
-  for (final scan in scans) {
-    lat += scan.latitude;
-    lng += scan.longitude;
-  }
-  return LatLng(lat / scans.length, lng / scans.length);
-}
-
-// True when every scan is within about 50 m of the others. Fitting the camera
-// to such a tiny area does not work, so the map just centres on it instead.
-bool _fitsOnePlace(List<DashboardScan> scans) {
-  if (scans.length < 2) return true;
-  var minLat = scans.first.latitude, maxLat = minLat;
-  var minLng = scans.first.longitude, maxLng = minLng;
-  for (final scan in scans) {
-    if (scan.latitude < minLat) minLat = scan.latitude;
-    if (scan.latitude > maxLat) maxLat = scan.latitude;
-    if (scan.longitude < minLng) minLng = scan.longitude;
-    if (scan.longitude > maxLng) maxLng = scan.longitude;
-  }
-  return maxLat - minLat < 0.0005 && maxLng - minLng < 0.0005;
 }
 
 // One place on the map: a dot in the color of the latest scan there, with the
