@@ -214,7 +214,11 @@ class _HomeTabState extends State<_HomeTab> {
       context,
       MaterialPageRoute(builder: (context) => ResultDetailScreen(scan: scan)),
     ).then((_) {
-      if (mounted) setState(() => _recent = _loadRecent());
+      if (mounted) {
+        setState(() {
+          _recent = _loadRecent();
+        });
+      }
     });
   }
 
@@ -414,7 +418,11 @@ class _FarmCardState extends State<_FarmCard> {
       context,
       MaterialPageRoute(builder: (context) => const DashboardScreen()),
     );
-    if (mounted) setState(() => _stats = _load());
+    if (mounted) {
+      setState(() {
+        _stats = _load();
+      });
+    }
   }
 
   Widget _number(String label, int? value) {

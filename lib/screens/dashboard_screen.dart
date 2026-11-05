@@ -9,7 +9,7 @@ import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/disease_badge.dart';
 import '../widgets/empty_state.dart';
-import '../widgets/scan_spots_map.dart';
+import '../widgets/scan_heat_map.dart';
 import '../widgets/section_card.dart';
 
 // Where the dashboard numbers come from
@@ -92,7 +92,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _data = _load());
+    setState(() {
+      _data = _load();
+    });
     try {
       await _data;
     } catch (_) {
@@ -492,14 +494,73 @@ class _MapCard extends StatelessWidget {
     final muted = TextStyle(fontSize: 13, color: context.colors.textMuted);
 
     return SectionCard(
-      title: 'My scan spots',
+      title: 'Scan Heat Map',
       children: [
         if (mapped.isEmpty)
           Text('None of these scans have a GPS location.', style: muted)
         else ...[
-          ScanSpotsMap(scans: mapped),
+          // A still preview, so dragging here scrolls the page. Tapping it
+          // opens the full screen map, where it can be moved and zoomed.
+          Stack(
+            children: [
+              ScanHeatMap(scans: mapped, height: 240, interactive: false),
+              Positioned.fill(
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ScanHeatMapScreen(scans: mapped),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: AppSpacing.sm,
+                top: AppSpacing.sm,
+                child: IgnorePointer(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xs,
+                    ),
+                    decoration: BoxDecoration(
+                      color: context.colors.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                      border: Border.all(color: context.colors.line),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.open_in_full,
+                          size: 14,
+                          color: context.colors.text,
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        const Text(
+                          'Open',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: AppSpacing.sm),
-          Text('Tap a dot to see what was found there.', style: muted),
+          Text(
+            'Stronger color means more scans in that area. Tap the map to '
+            'open it, then tap a dot to see what was found there.',
+            style: muted,
+          ),
         ],
         if (missing > 0 && mapped.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xs),
