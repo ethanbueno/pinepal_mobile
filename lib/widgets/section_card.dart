@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 // A titled card, like a Card with a CardTitle on the web: ring border, rounded
-// corners and a medium-weight title. An optional action sits at the right of the
+// corners and a semibold title. An optional action sits at the right of the
 // title.
 class SectionCard extends StatelessWidget {
   final String title;
@@ -41,7 +41,7 @@ class SectionCard extends StatelessWidget {
                     title,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),

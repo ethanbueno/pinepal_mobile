@@ -114,16 +114,16 @@ class AppSpacing {
 
 // Sizes of the floating bottom navigation bar (Material 3 sizes)
 class AppNav {
-  static const barHeight =
-      76.0; // the bar itself, the safe area is added under it
+  // the bar itself, the safe area is added under it
+  static const barHeight = 84.0;
   static const barRadius = barHeight / 2; // fully rounded ends
   static const inset = 6.0; // gap between the bar edge and the active tab pill
-  static const tabRadius =
-      (barHeight - 2 - 2 * inset) / 2; // pill inside the bar
-  static const iconSize = 24.0;
-  static const labelSize = 12.0;
-  static const scanButton = 60.0; // round camera button in the middle
-  static const scanIcon = 28.0;
+  // pill inside the bar
+  static const tabRadius = (barHeight - 2 - 2 * inset) / 2;
+  static const iconSize = 28.0;
+  static const labelSize = 13.0;
+  static const scanButton = 64.0; // round camera button in the middle
+  static const scanIcon = 30.0;
   static const sideMargin = 12.0; // space between the bar and the screen edges
 }
 

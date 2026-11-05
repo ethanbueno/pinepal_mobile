@@ -10,6 +10,7 @@ import '../services/label_service.dart';
 import '../services/protocol_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format.dart';
+import '../widgets/confidence_bar.dart';
 import '../widgets/protocol_cards.dart';
 import 'edit_scan_screen.dart';
 
@@ -63,22 +64,22 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
               RemediationProtocol.fallback(_scan.predictedLabel);
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.page),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildImageCard(protocol),
                 if (_scan.confidence < ClassifierService.minConfidence) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: AppSpacing.md),
                   _buildLowConfidenceNotice(),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
                 _buildSummaryCard(protocol),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
                 PathogenCard(protocol: protocol),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.md),
                 RemediationCard(protocol: protocol),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.section),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -118,7 +119,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.warning_amber, color: context.colors.danger, size: 18),
-          SizedBox(width: 8),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               'Low confidence result. Retake the photo in better lighting, or '
@@ -271,12 +272,14 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
           Text(
             protocol.scientificName,
             style: TextStyle(
-              color: context.colors.accentText,
+              color: context.colors.textMuted,
               fontSize: 15,
               fontStyle: FontStyle.italic,
             ),
           ),
-          const Divider(height: 24),
+          const SizedBox(height: AppSpacing.md),
+          ConfidenceBar(value: scan.confidence),
+          const Divider(height: 28),
           if (scan.secondLabel != null)
             _row(
               Icons.compare_arrows,

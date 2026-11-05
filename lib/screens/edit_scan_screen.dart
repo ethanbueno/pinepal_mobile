@@ -210,7 +210,7 @@ class _EditScanScreenState extends State<EditScanScreen> {
           final labels = snapshot.data ?? [];
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.page),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
