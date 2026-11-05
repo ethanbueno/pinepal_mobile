@@ -5,12 +5,16 @@ import 'package:latlong2/latlong.dart';
 import '../models/dashboard_stats.dart';
 import '../services/label_service.dart';
 import '../theme/app_colors.dart';
+import '../utils/map_area.dart';
 import 'disease_badge.dart';
 
 // Heat map of the places where the farmer scanned. Every scan adds a soft
 // circle in the color of its condition, so places with many scans glow
 // stronger. A dot sits on each place, with a number when several scans were
 // taken at the same spot.
+//
+// The map is locked to Echague, like the maps on the website (see
+// lib/utils/map_area.dart). Scans taken outside it are left off the map.
 //
 // The street map comes from OpenStreetMap, so it needs internet. flutter_map
 // keeps the tiles it has already shown, so places seen before still load
@@ -46,7 +50,10 @@ class _ScanHeatMapState extends State<ScanHeatMap> {
 
   @override
   Widget build(BuildContext context) {
-    final scans = widget.scans;
+    // only the scans inside the locked area, so far away ones can't pull the map off Echague
+    final scans = widget.scans
+        .where((scan) => isInLockedArea(scan.latitude, scan.longitude))
+        .toList();
     final interactive = widget.interactive;
     final height = widget.height;
     final spots = _groupBySpot(scans);
@@ -54,9 +61,13 @@ class _ScanHeatMapState extends State<ScanHeatMap> {
     final map = FlutterMap(
       options: MapOptions(
         backgroundColor: context.colors.surface2,
-        initialCenter: _center(scans),
-        initialZoom: 16,
-        initialCameraFit: _fitsOnePlace(scans)
+        // no scans in Echague: open on the town; scans at one spot: zoom in on them
+        initialCenter: scans.isEmpty ? lockedAreaCenter : _center(scans),
+        initialZoom: scans.isEmpty ? lockedAreaZoom : 16,
+        minZoom: lockedAreaMinZoom,
+        maxZoom: lockedAreaMaxZoom,
+        cameraConstraint: CameraConstraint.contain(bounds: lockedAreaBounds),
+        initialCameraFit: scans.isEmpty || _fitsOnePlace(scans)
             ? null
             : CameraFit.coordinates(
                 coordinates: [

@@ -9,6 +9,7 @@ import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/disease_badge.dart';
 import '../widgets/empty_state.dart';
+import '../utils/map_area.dart';
 import '../widgets/scan_heat_map.dart';
 import '../widgets/section_card.dart';
 
@@ -491,6 +492,9 @@ class _MapCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final mapped = stats.withGps;
     final missing = stats.total - mapped.length;
+    final outside = mapped
+        .where((scan) => !isInLockedArea(scan.latitude, scan.longitude))
+        .length;
     final muted = TextStyle(fontSize: 13, color: context.colors.textMuted);
 
     return SectionCard(
@@ -559,6 +563,14 @@ class _MapCard extends StatelessWidget {
           Text(
             'Stronger color means more scans in that area. Tap the map to '
             'open it, then tap a dot to see what was found there.',
+            style: muted,
+          ),
+        ],
+        if (outside > 0) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            '$outside ${outside == 1 ? 'scan is' : 'scans are'} outside '
+            '$lockedAreaName and not shown.',
             style: muted,
           ),
         ],
