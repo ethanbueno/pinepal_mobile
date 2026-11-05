@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -15,10 +16,22 @@ class Prediction {
 }
 
 class ClassificationResult {
+  // How sure the model is that the photo shows a pineapple (0.0 - 1.0).
+  // null for an older model that has no pineapple check.
+  final double? pineappleScore;
+
+  // False when the photo does not look like a pineapple. The disease guesses
+  // are then meaningless and the scan must not be saved.
+  final bool isPineapple;
+
   // Sorted from the most likely to the least likely, at most 3 items
   final List<Prediction> topPredictions;
 
-  ClassificationResult({required this.topPredictions});
+  ClassificationResult({
+    required this.topPredictions,
+    this.pineappleScore,
+    this.isPineapple = true,
+  });
 
   Prediction get best => topPredictions[0];
 
@@ -26,35 +39,68 @@ class ClassificationResult {
   Prediction? get second =>
       topPredictions.length > 1 ? topPredictions[1] : null;
 
-  // Below 60% the app asks the farmer to retake the photo
+  // Below the threshold the app says "Not sure" and asks for a retake
   bool get isLowConfidence => best.confidence < ClassifierService.minConfidence;
 }
 
-// Runs the MobileNetV2 model bundled in assets/models.
+// Runs the PinePal model bundled in assets/models.
+//
+// The v2 model (MobileNetV3-Large) has one output of [1, 7]:
+//   index 0     = how sure it is that the photo is a pineapple
+//   indexes 1-6 = the 6 conditions, in labels.txt order
+// The file names and both thresholds come from pinepal_model_config.json, so a
+// retrained model only needs its three files replaced.
 class ClassifierService {
-  static const String modelPath = 'assets/models/pinepal_mobilenetv2.tflite';
-  static const String labelsPath = 'assets/models/labels.txt';
-  static const double minConfidence = 0.60;
+  static const String configPath = 'assets/models/pinepal_model_config.json';
+  static const String modelsDir = 'assets/models';
+
+  // Used until the config is read, and if it can't be read
+  static const String defaultModelFile = 'pinepal_model.tflite';
+  static const String defaultLabelsFile = 'labels.txt';
+
+  // Below this disease confidence the app says "Not sure". Updated from the
+  // config when the model loads; the report screen reads it too.
+  static double minConfidence = 0.60;
+
+  // Below this pineapple score the photo is rejected
+  static double pineappleThreshold = 0.5;
 
   Interpreter? _interpreter;
   List<String> _labels = [];
 
   int _inputSize = 224;
-  int _numClasses = 0;
+  int _numOutputs = 0;
+  bool _hasPineappleOutput = false;
 
   bool get isReady => _interpreter != null && _labels.isNotEmpty;
 
   Future<void> initialize() async {
     if (_interpreter != null) return;
 
+    var modelFile = defaultModelFile;
+    var labelsFile = defaultLabelsFile;
+    try {
+      final config =
+          jsonDecode(await rootBundle.loadString(configPath)) as Map<String, dynamic>;
+      modelFile = config['model'] as String? ?? modelFile;
+      labelsFile = config['labels_file'] as String? ?? labelsFile;
+      pineappleThreshold =
+          (config['gate_threshold'] as num?)?.toDouble() ?? pineappleThreshold;
+      minConfidence =
+          (config['disease_threshold'] as num?)?.toDouble() ?? minConfidence;
+    } catch (e) {
+      debugPrint('Could not read $configPath, using defaults: $e');
+    }
+
     final options = InterpreterOptions()..threads = 2;
-    final interpreter = await Interpreter.fromAsset(modelPath, options: options);
+    final interpreter =
+        await Interpreter.fromAsset('$modelsDir/$modelFile', options: options);
     interpreter.allocateTensors();
 
     // Read the shapes from the model instead of hard-coding them,
     // so a re-exported model does not silently break the app.
     final inputShape = interpreter.getInputTensor(0).shape; // [1, 224, 224, 3]
-    final outputShape = interpreter.getOutputTensor(0).shape; // [1, numClasses]
+    final outputShape = interpreter.getOutputTensor(0).shape; // [1, 7]
 
     if (inputShape.length != 4 || inputShape[3] != 3) {
       interpreter.close();
@@ -62,21 +108,26 @@ class ClassifierService {
     }
 
     _inputSize = inputShape[1];
-    _numClasses = outputShape.last;
+    _numOutputs = outputShape.last;
 
-    final rawLabels = await rootBundle.loadString(labelsPath);
+    final rawLabels = await rootBundle.loadString('$modelsDir/$labelsFile');
     _labels = rawLabels
         .split('\n')
         .map((line) => line.trim())
         .where((line) => line.isNotEmpty)
         .toList();
 
-    // labels.txt must have the same classes, in the same order, as the model
-    if (_labels.length != _numClasses) {
+    // labels.txt lists the conditions only. The v2 model has one extra output
+    // in front of them for the pineapple check; an old model has none.
+    if (_numOutputs == _labels.length + 1) {
+      _hasPineappleOutput = true;
+    } else if (_numOutputs == _labels.length) {
+      _hasPineappleOutput = false;
+    } else {
       interpreter.close();
       throw StateError(
-        'labels.txt has ${_labels.length} labels but the model has '
-        '$_numClasses outputs.',
+        '$labelsFile has ${_labels.length} labels but the model has '
+        '$_numOutputs outputs.',
       );
     }
 
@@ -91,10 +142,18 @@ class ClassifierService {
     // Decoding and resizing is slow in Dart, so it runs off the UI thread.
     final input = await compute(_preprocessImage, (imagePath, _inputSize));
 
-    final output = List.generate(1, (_) => List.filled(_numClasses, 0.0));
+    final output = List.generate(1, (_) => List.filled(_numOutputs, 0.0));
     _interpreter!.run([input], output);
 
-    final scores = _toProbabilities(List<double>.from(output[0]));
+    final raw = List<double>.from(output[0]);
+    double? pineappleScore;
+    var diseaseRaw = raw;
+    if (_hasPineappleOutput) {
+      pineappleScore = raw[0];
+      diseaseRaw = raw.sublist(1);
+    }
+
+    final scores = _toProbabilities(diseaseRaw);
 
     // Pair every label with its score, then sort from highest to lowest
     final all = <Prediction>[
@@ -102,7 +161,12 @@ class ClassifierService {
         Prediction(label: _labels[i], confidence: scores[i]),
     ]..sort((a, b) => b.confidence.compareTo(a.confidence));
 
-    return ClassificationResult(topPredictions: all.take(3).toList());
+    return ClassificationResult(
+      topPredictions: all.take(3).toList(),
+      pineappleScore: pineappleScore,
+      isPineapple:
+          pineappleScore == null || pineappleScore >= pineappleThreshold,
+    );
   }
 
   // Some exported models already end with softmax and some return raw

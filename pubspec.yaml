@@ -86,7 +86,8 @@ flutter:
           weight: 700
 
   assets:
-    - assets/models/pinepal_mobilenetv2.tflite
+    - assets/models/pinepal_model.tflite
+    - assets/models/pinepal_model_config.json
     - assets/models/labels.txt
     - assets/icons/logo.png
     - assets/data/remediation_protocols.json

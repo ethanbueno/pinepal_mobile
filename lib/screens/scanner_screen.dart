@@ -196,28 +196,34 @@ class _ScannerScreenState extends State<ScannerScreen>
     try {
       final picked = await _picker.pickImage(source: ImageSource.gallery);
       if (picked != null) {
-        await _showPreview(picked.path, 'Gallery');
+        final result = await _showPreview(picked.path, 'Gallery');
+        // The photo wasn't a pineapple: open the gallery again right away
+        if (result == PhotoPreviewScreen.pickAnother && mounted) {
+          await _pickFromGallery();
+        }
       }
     } catch (e) {
       _showMessage('Could not open the gallery: $e');
     }
   }
 
-  Future<void> _showPreview(String path, String source) {
+  Future<Object?> _showPreview(String path, String source) {
     return _openPage(PhotoPreviewScreen(imagePath: path, imageSource: source));
   }
 
   // Opens another screen on top of the camera. The light is switched off while
   // it is open, so it does not stay on behind a photo or the history list.
-  Future<void> _openPage(Widget page) async {
-    if (!mounted) return;
+  // Returns what the page sent back when it closed, if anything.
+  Future<Object?> _openPage(Widget page) async {
+    if (!mounted) return null;
     if (_torchOn) await _applyTorch(false);
-    if (!mounted) return;
-    await Navigator.push(
+    if (!mounted) return null;
+    final result = await Navigator.push<Object?>(
       context,
       MaterialPageRoute(builder: (context) => page),
     );
     if (mounted && _torchOn) await _applyTorch(true);
+    return result;
   }
 
   // Pop-up explaining why the camera is needed, with a shortcut to Settings

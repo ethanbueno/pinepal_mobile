@@ -1,12 +1,13 @@
 # pinepal_mobile
-PinePal Mobile: an offline-first Flutter app that lets farmers detect pineapple diseases and disorders on the spot. It runs on-device MobileNetV2 classification from the phone camera with no internet needed, stores scans locally, and syncs them to the Flask + MySQL backend.
+PinePal Mobile: an offline-first Flutter app that lets farmers detect pineapple diseases and disorders on the spot. It runs an on-device MobileNetV3-Large model from the phone camera with no internet needed, stores scans locally, and syncs them to the Flask + MySQL backend.
 
 This is the phone app of PinePal. The [PinePal web dashboard](https://github.com/ethanbueno/pinepal_web) (React) and the Flask backend are in a separate repository; officers use the dashboard to follow the scans that farmers sync from here.
 
 ## Features
 
 - **Scanner:** take a photo with the camera (with a framing guide, a light toggle and camera flip) or pick one from the gallery. The model runs on the phone and shows the disease, the confidence and the three most likely classes.
-- **Six classes:** Crown Rot, Fruit Rot, Mealybug Wilt, Fruit Fasciation, Multiple Crown and No Disease.
+- **Pineapple check:** the model first scores whether the photo shows a pineapple. If it doesn't, the app asks for a retake and saves nothing.
+- **Six classes:** Crown Rot, Fruit Rot, Mealybug Wilt, Fruit Fasciation, Multiple Crown and No Disease. Below the confidence threshold the result says "Not sure".
 - **Diagnostic report:** severity, location, farm and municipality, a description, what to look for, numbered remediation steps and prevention.
 - **Guide:** the same information for every disease, available offline.
 - **History:** every scan with its sync status and feedback, the model's accuracy on the scans that were checked, CSV export and delete.
@@ -65,7 +66,7 @@ lib/
   theme/               colors, theme and light/dark mode (the web design tokens)
   utils/               formatting and the list of municipalities
 assets/
-  models/              the MobileNetV2 model and its labels
+  models/              the model, its labels and pinepal_model_config.json (thresholds)
   data/                the disease guide (remediation protocols)
   fonts/, icons/       Geist typeface and the logo
 test/                  automated tests
@@ -88,7 +89,11 @@ The tests cover the local database and its upgrades, the CSV export, the API cli
 
 ## Known limitations
 
-- There is no check yet that a photo actually shows a pineapple; any photo is classified as one of the six classes.
+- The pineapple check can still be fooled by photos unlike anything it was trained on.
 - Officer verification is done on the web, not in this app.
 - Deleting a scan on the phone does not delete it from the server.
 - Tested on the Android emulator; testing on real phones is still to do.
+
+## Updating the model
+
+The model is trained in `pinepal_v2_gate_disease_mobilenetv3.ipynb` (Google Colab). Replace the three files in `assets/models/` with the new ones: `pinepal_model.tflite`, `labels.txt` and `pinepal_model_config.json`. The app reads the file names and both thresholds from the config, so no code change is needed. The model has one `[1, 7]` output: index 0 is the pineapple score and 1-6 are the conditions in `labels.txt` order.

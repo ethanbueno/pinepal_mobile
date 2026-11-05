@@ -16,7 +16,13 @@ import 'result_detail_screen.dart';
 
 // Photo on top, a rounded sheet at the bottom. Tapping "Analyze Photo" runs
 // the model and the sheet shows the result (disease, confidence, top 3).
+// A photo that doesn't look like a pineapple gets a retake message instead,
+// and is not saved.
 class PhotoPreviewScreen extends StatefulWidget {
+  // Sent back to the scanner when a gallery photo wasn't a pineapple, so the
+  // scanner opens the gallery again
+  static const String pickAnother = 'pick_another';
+
   final String imagePath;
   final String imageSource; // 'Camera' or 'Gallery'
 
@@ -55,6 +61,8 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       final result = await _classifier.classifyImage(widget.imagePath);
       if (!mounted) return;
       setState(() => _result = result);
+      // Not a pineapple: show the retake message and keep it out of History
+      if (!result.isPineapple) return;
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = 'Could not analyze the photo: $e');
@@ -189,7 +197,9 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            if (_result != null)
+            if (_result != null && !_result!.isPineapple)
+              ..._buildNotPineapple()
+            else if (_result != null)
               ..._buildResult(_result!)
             else
               ..._buildBeforeAnalysis(),
@@ -237,6 +247,50 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
         ),
         onPressed: () => Navigator.pop(context),
         child: const Text('Retake'),
+      ),
+    ];
+  }
+
+  // Shown when the model says the photo is not a pineapple. Nothing is saved,
+  // and the farmer goes back to take or pick a better photo.
+  List<Widget> _buildNotPineapple() {
+    final fromGallery = widget.imageSource == 'Gallery';
+    return [
+      Row(
+        children: [
+          Icon(Icons.image_not_supported_outlined, color: context.colors.danger),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              "This doesn't look like a pineapple",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Text(
+        fromGallery
+            ? 'Pick a photo that clearly shows the pineapple fruit, crown or '
+                  'leaves. This photo was not checked for disease or saved.'
+            : 'Take a closer photo of the pineapple fruit, crown or leaves, in '
+                  'good light. This photo was not checked for disease or saved.',
+        style: TextStyle(color: context.colors.textMuted),
+      ),
+      const SizedBox(height: 20),
+      ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        icon: Icon(
+          fromGallery ? Icons.photo_library_outlined : Icons.camera_alt_outlined,
+        ),
+        label: Text(fromGallery ? 'Choose another photo' : 'Retake photo'),
+        // Camera: back to the live camera. Gallery: the scanner reopens the gallery.
+        onPressed: () => Navigator.pop(
+          context,
+          fromGallery ? PhotoPreviewScreen.pickAnother : null,
+        ),
       ),
     ];
   }
