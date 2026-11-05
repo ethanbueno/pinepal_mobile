@@ -138,7 +138,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
 
   Widget _buildScaffold() {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: CameraColors.background,
       body: Column(
         children: [
           // Photo fills the space above the sheet
@@ -153,7 +153,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: CircleAvatar(
-                        backgroundColor: Colors.black54,
+                        backgroundColor: CameraColors.scrim,
                         child: IconButton(
                           icon: const Icon(Icons.close),
                           onPressed: () => Navigator.pop(context),
@@ -258,7 +258,10 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
     return [
       Row(
         children: [
-          Icon(Icons.image_not_supported_outlined, color: context.colors.danger),
+          Icon(
+            Icons.image_not_supported_outlined,
+            color: context.colors.danger,
+          ),
           const SizedBox(width: 8),
           const Expanded(
             child: Text(
@@ -283,7 +286,9 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
         icon: Icon(
-          fromGallery ? Icons.photo_library_outlined : Icons.camera_alt_outlined,
+          fromGallery
+              ? Icons.photo_library_outlined
+              : Icons.camera_alt_outlined,
         ),
         label: Text(fromGallery ? 'Choose another photo' : 'Retake photo'),
         // Camera: back to the live camera. Gallery: the scanner reopens the gallery.

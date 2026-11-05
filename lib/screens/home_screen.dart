@@ -51,14 +51,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() => _reload++);
   }
 
-  // The bar is a pill (radius 32). The active tab is a pill inside it, with the
-  // same gap on every side (6), so both shapes follow each other. 25 is half
-  // of the tab height: 64 - 2 (border) - 2 * 6 = 50.
-  static const _navInset = 6.0;
-  static const _tabRadius = 25.0;
-
-  // Active tab gets a soft accent background, like the web navigation
-  // Outlined icon normally, filled icon on the active tab
+  // The bar is a pill. The active tab is a pill inside it, with the same gap
+  // on every side (AppNav.inset), so both shapes follow each other. Sizes are
+  // in AppNav (lib/theme/app_colors.dart).
+  //
+  // Active tab gets a soft accent background, like the web navigation.
+  // Outlined icon normally, filled icon on the active tab.
   Widget _navItem(int index, IconData icon, IconData activeIcon, String label) {
     final selected = _index == index;
     final color = selected
@@ -69,10 +67,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Padding(
         // 2 between tabs; the first and last keep the full gap to the bar edge
         padding: EdgeInsets.fromLTRB(
-          index == 0 ? _navInset : 2,
-          _navInset,
-          index == 3 ? _navInset : 2,
-          _navInset,
+          index == 0 ? AppNav.inset : 2,
+          AppNav.inset,
+          index == 3 ? AppNav.inset : 2,
+          AppNav.inset,
         ),
         // The pill fades in and out; the press effect is tinted with the accent
         // instead of Material's default grey
@@ -81,11 +79,11 @@ class _HomeScreenState extends State<HomeScreen> {
           curve: Curves.easeOut,
           decoration: BoxDecoration(
             color: selected ? context.colors.accentSoft : Colors.transparent,
-            borderRadius: BorderRadius.circular(_tabRadius),
+            borderRadius: BorderRadius.circular(AppNav.tabRadius),
           ),
           child: Material(
             type: MaterialType.transparency,
-            borderRadius: BorderRadius.circular(_tabRadius),
+            borderRadius: BorderRadius.circular(AppNav.tabRadius),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
               onTap: () => setState(() => _index = index),
@@ -96,12 +94,16 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(selected ? activeIcon : icon, color: color),
-                  const SizedBox(height: 2),
+                  Icon(
+                    selected ? activeIcon : icon,
+                    color: color,
+                    size: AppNav.iconSize,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     label,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: AppNav.labelSize,
                       fontWeight: FontWeight.w600,
                       color: color,
                     ),
@@ -122,15 +124,21 @@ class _HomeScreenState extends State<HomeScreen> {
         key: ValueKey('$_index-$_reload'),
         child: _currentPage(),
       ),
-      // Floating rounded bar, inset from the screen edges
+      // Floating rounded bar, inset from the screen edges. SafeArea adds the
+      // gesture bar space under it on phones without buttons.
       bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          padding: const EdgeInsets.fromLTRB(
+            AppNav.sideMargin,
+            0,
+            AppNav.sideMargin,
+            AppNav.sideMargin,
+          ),
           child: Container(
-            height: 64,
+            height: AppNav.barHeight,
             decoration: BoxDecoration(
               color: context.colors.surface,
-              borderRadius: BorderRadius.circular(32),
+              borderRadius: BorderRadius.circular(AppNav.barRadius),
               border: Border.all(color: context.colors.line),
             ),
             child: Row(
@@ -150,13 +158,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           alpha: 0.15,
                         ),
                         highlightColor: Colors.transparent,
-                        child: SizedBox(
-                          width: 52,
-                          height: 52,
-                          child: Icon(
-                            Icons.camera_alt,
-                            size: 28,
-                            color: context.colors.onAccent,
+                        child: Tooltip(
+                          message: 'Scan a pineapple',
+                          child: SizedBox(
+                            width: AppNav.scanButton,
+                            height: AppNav.scanButton,
+                            child: Icon(
+                              Icons.camera_alt,
+                              size: AppNav.scanIcon,
+                              color: context.colors.onAccent,
+                            ),
                           ),
                         ),
                       ),

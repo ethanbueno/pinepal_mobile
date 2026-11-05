@@ -44,25 +44,27 @@ class AppPalette extends ThemeExtension<AppPalette> {
     text: Color(0xFF141413), // --foreground
     textMuted: Color(0xFF6B6A64), // --muted-foreground
     accent: Color(0xFFF0B323), // --primary
-    accentText: Color(0xFF8A5F00), // darker amber so text passes contrast
+    accentText: Color(0xFF8A5F00), // --primary-text
     onAccent: Color(0xFF14110A), // --primary-foreground
     success: Color(0xFF2F7D4F), // --chart-2
     danger: Color(0xFFB53333), // --destructive
-    warning: Color(0xFF9A6700),
+    warning: Color(
+      0xFF8A5F00,
+    ), // --primary-text (the web has no separate warning color)
   );
 
   static const dark = AppPalette(
-    canvas: Color(0xFF0D1117),
-    surface: Color(0xFF161B22),
-    surface2: Color(0xFF21262D),
-    line: Color(0xFF30363D),
-    text: Color(0xFFE6EDF3),
-    textMuted: Color(0xFF8B949E),
-    accent: Color(0xFFF2C14E),
-    accentText: Color(0xFFF2C14E),
-    onAccent: Color(0xFF14110A),
-    success: Color(0xFF3FB950),
-    danger: Color(0xFFF85149),
+    canvas: Color(0xFF0D1117), // --background
+    surface: Color(0xFF161B22), // --card
+    surface2: Color(0xFF21262D), // --muted
+    line: Color(0xFF30363D), // --border
+    text: Color(0xFFE6EDF3), // --foreground
+    textMuted: Color(0xFF8B949E), // --muted-foreground
+    accent: Color(0xFFF2C14E), // --primary
+    accentText: Color(0xFFF2C14E), // --primary-text
+    onAccent: Color(0xFF14110A), // --primary-foreground
+    success: Color(0xFF3FB950), // --chart-2
+    danger: Color(0xFFF85149), // --destructive
     warning: Color(0xFFD29922),
   );
 
@@ -108,4 +110,35 @@ class AppSpacing {
   static const lg = 16.0;
   static const page = 20.0; // padding around a screen
   static const section = 28.0; // space between sections
+}
+
+// Sizes of the floating bottom navigation bar (Material 3 sizes)
+class AppNav {
+  static const barHeight =
+      76.0; // the bar itself, the safe area is added under it
+  static const barRadius = barHeight / 2; // fully rounded ends
+  static const inset = 6.0; // gap between the bar edge and the active tab pill
+  static const tabRadius =
+      (barHeight - 2 - 2 * inset) / 2; // pill inside the bar
+  static const iconSize = 24.0;
+  static const labelSize = 12.0;
+  static const scanButton = 60.0; // round camera button in the middle
+  static const scanIcon = 28.0;
+  static const sideMargin = 12.0; // space between the bar and the screen edges
+}
+
+// The camera screens are always dark, whatever the app theme is, so the photo
+// stays the brightest thing on screen. These are their fixed overlay colors.
+class CameraColors {
+  static const background = Color(0xFF000000);
+  static const scrim = Color(
+    0x8C000000,
+  ); // black at 55%, behind text on the photo
+  static const shade = Color(
+    0x59000000,
+  ); // black at 35%, outside the scan frame
+  static const glassFill = Color(0x1AFFFFFF); // white at 10%, round buttons
+  static const glassLine = Color(0x24FFFFFF); // white at 14%, their border
+  static const foreground = Color(0xFFFFFFFF); // icons and text on the camera
+  static const foregroundSoft = Color(0xD9FFFFFF); // white at 85%, hints
 }

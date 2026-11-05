@@ -9,8 +9,8 @@ import '../theme/app_colors.dart';
 // Building blocks of the camera screen. The scanner is always dark, so these
 // use AppPalette.dark instead of the current theme.
 
-const _glassFill = Color(0x1AFFFFFF); // white at 10%
-const _glassLine = Color(0x24FFFFFF); // white at 14%
+const _glassFill = CameraColors.glassFill;
+const _glassLine = CameraColors.glassLine;
 
 // Camera picture that fills its whole box, edge to edge. CameraPreview alone
 // keeps the camera's shape and leaves black bars on the sides; here the picture
@@ -93,7 +93,7 @@ class GlassButton extends StatelessWidget {
               child: Icon(
                 icon,
                 size: size * 0.5,
-                color: active ? p.onAccent : Colors.white,
+                color: active ? p.onAccent : CameraColors.foreground,
               ),
             ),
           ),
@@ -126,7 +126,7 @@ class GlassAction extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            color: Color(0xD9FFFFFF),
+            color: CameraColors.foregroundSoft,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -177,7 +177,9 @@ class _ShutterButtonState extends State<ShutterButton> {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
-                color: Colors.white.withValues(alpha: ready ? 1 : 0.4),
+                color: CameraColors.foreground.withValues(
+                  alpha: ready ? 1 : 0.4,
+                ),
                 width: 4,
               ),
             ),
@@ -300,7 +302,7 @@ class _FramePainter extends CustomPainter {
     canvas.drawPath(
       path,
       stroke
-        ..color = Colors.black.withValues(alpha: 0.35)
+        ..color = CameraColors.shade
         ..strokeWidth = 7,
     );
     canvas.drawPath(
@@ -327,7 +329,7 @@ class ScannerHint extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
+        color: CameraColors.scrim,
         borderRadius: BorderRadius.circular(AppRadius.pill),
         border: Border.all(color: _glassLine),
       ),
@@ -340,7 +342,7 @@ class ScannerHint extends StatelessWidget {
             child: Text(
               text,
               style: const TextStyle(
-                color: Colors.white,
+                color: CameraColors.foreground,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),

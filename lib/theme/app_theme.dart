@@ -210,7 +210,7 @@ ThemeData buildTheme(Brightness brightness) {
 
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: dark ? const Color(0xFF262C36) : p.text,
+      backgroundColor: dark ? p.surface2 : p.text,
       contentTextStyle: TextStyle(
         fontFamily: 'Geist',
         color: dark ? p.text : p.canvas,
