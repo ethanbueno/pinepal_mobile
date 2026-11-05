@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../models/dashboard_stats.dart';
 import '../models/scan_record.dart';
 import '../services/database_helper.dart';
 import '../theme/app_colors.dart';
@@ -9,6 +10,7 @@ import '../theme/theme_controller.dart';
 import '../utils/format.dart';
 import '../widgets/tile_card.dart';
 import '../widgets/disease_badge.dart';
+import 'dashboard_screen.dart';
 import 'guide_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
@@ -257,6 +259,8 @@ class _HomeTabState extends State<_HomeTab> {
           const SizedBox(height: AppSpacing.section),
 
           const _ScanHint(),
+          const SizedBox(height: AppSpacing.md),
+          const _FarmCard(),
           const SizedBox(height: AppSpacing.section),
 
           const Text(
@@ -384,6 +388,116 @@ class _ScanHint extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Three numbers from this phone's scans. Tap to open the full dashboard.
+class _FarmCard extends StatefulWidget {
+  const _FarmCard();
+
+  @override
+  State<_FarmCard> createState() => _FarmCardState();
+}
+
+class _FarmCardState extends State<_FarmCard> {
+  late Future<DashboardStats> _stats = _load();
+
+  Future<DashboardStats> _load() async {
+    final scans = await DatabaseHelper.instance.getAllScans();
+    return DashboardStats(scans.map(DashboardScan.fromRecord).toList());
+  }
+
+  Future<void> _open() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const DashboardScreen()),
+    );
+    if (mounted) setState(() => _stats = _load());
+  }
+
+  Widget _number(String label, int? value) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value == null ? '-' : '$value',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          ),
+          Text(
+            label,
+            style: TextStyle(fontSize: 13, color: context.colors.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: context.colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        side: BorderSide(color: context.colors.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: _open,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: FutureBuilder<DashboardStats>(
+            future: _stats,
+            builder: (context, snapshot) {
+              final stats = snapshot.data;
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.insights_outlined,
+                        color: context.colors.accentText,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      const Expanded(
+                        child: Text(
+                          'My farm',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        'Dashboard',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: context.colors.accentText,
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: context.colors.accentText,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Row(
+                    children: [
+                      _number('Scans', stats?.total),
+                      _number('Problems', stats?.diseased),
+                      _number('Healthy', stats?.healthy),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }
