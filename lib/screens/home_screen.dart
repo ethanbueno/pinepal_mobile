@@ -5,8 +5,9 @@ import 'package:flutter/material.dart';
 import '../models/scan_record.dart';
 import '../services/database_helper.dart';
 import '../theme/app_colors.dart';
-import '../widgets/tile_card.dart';
 import '../theme/theme_controller.dart';
+import '../utils/format.dart';
+import '../widgets/tile_card.dart';
 import '../widgets/disease_badge.dart';
 import 'guide_screen.dart';
 import 'history_screen.dart';
@@ -57,7 +58,8 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _tabRadius = 25.0;
 
   // Active tab gets a soft accent background, like the web navigation
-  Widget _navItem(int index, IconData icon, String label) {
+  // Outlined icon normally, filled icon on the active tab
+  Widget _navItem(int index, IconData icon, IconData activeIcon, String label) {
     final selected = _index == index;
     final color = selected
         ? context.colors.accentText
@@ -94,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(icon, color: color),
+                  Icon(selected ? activeIcon : icon, color: color),
                   const SizedBox(height: 2),
                   Text(
                     label,
@@ -133,8 +135,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             child: Row(
               children: [
-                _navItem(0, Icons.home, 'Home'),
-                _navItem(1, Icons.history, 'History'),
+                _navItem(0, Icons.home_outlined, Icons.home, 'Home'),
+                _navItem(1, Icons.history, Icons.history, 'History'),
                 // Scan button: a circle inside the bar
                 Expanded(
                   child: Center(
@@ -161,8 +163,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                _navItem(2, Icons.menu_book, 'Guide'),
-                _navItem(3, Icons.person, 'Profile'),
+                _navItem(2, Icons.menu_book_outlined, Icons.menu_book, 'Guide'),
+                _navItem(3, Icons.person_outline, Icons.person, 'Profile'),
               ],
             ),
           ),
@@ -194,124 +196,100 @@ class _HomeTabState extends State<_HomeTab> {
     return all.take(3).toList();
   }
 
+  void _openScan(ScanRecord scan) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ResultDetailScreen(scan: scan)),
+    ).then((_) {
+      if (mounted) setState(() => _recent = _loadRecent());
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(AppSpacing.page),
         children: [
+          // Logo with the app name and a short line under it
           Row(
             children: [
-              Image.asset('assets/icons/logo.png', width: 56),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'PINEPAL',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.4,
-                  ),
+              Image.asset('assets/icons/logo.png', width: 48),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'PINEPAL',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.2,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Pineapple disease scanner',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: context.colors.textMuted,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const _ThemeToggle(),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Pineapple disease scanner',
-            style: TextStyle(color: context.colors.textMuted),
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: AppSpacing.section),
 
-          // Prompt to scan
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: context.colors.surface,
-              borderRadius: BorderRadius.circular(AppRadius.card),
-              border: Border.all(color: context.colors.line),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  // Same look as the scan button in the bottom bar
-                  decoration: BoxDecoration(
-                    color: context.colors.accent,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.camera_alt,
-                    size: 28,
-                    color: context.colors.onAccent,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                const Expanded(
-                  child: Text(
-                    'Tap the camera button below to scan a pineapple '
-                    'for diseases.',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+          const _ScanHint(),
+          const SizedBox(height: AppSpacing.section),
 
           const Text(
             'Recent scans',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.md),
           FutureBuilder<List<ScanRecord>>(
             future: _recent,
             builder: (context, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
                 return const Padding(
-                  padding: EdgeInsets.all(24),
+                  padding: EdgeInsets.all(AppSpacing.page),
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
               final scans = snapshot.data ?? [];
               if (scans.isEmpty) {
-                return Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Text(
-                    'No scans yet',
-                    style: TextStyle(color: context.colors.textMuted),
-                  ),
-                );
+                return const _NoScansYet();
               }
               return Column(
                 children: scans.map((scan) {
                   return TileCard(
                     child: ListTile(
-                      onTap: () =>
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  ResultDetailScreen(scan: scan),
-                            ),
-                          ).then((_) {
-                            if (mounted) {
-                              setState(() => _recent = _loadRecent());
-                            }
-                          }),
+                      onTap: () => _openScan(scan),
+                      minVerticalPadding: AppSpacing.md,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                      ),
                       leading: ClipRRect(
                         borderRadius: BorderRadius.circular(AppRadius.control),
                         child: Image.file(
                           File(scan.imagePath),
-                          width: 52,
-                          height: 52,
+                          width: 56,
+                          height: 56,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stack) => Icon(
-                            Icons.image_not_supported,
-                            size: 40,
-                            color: context.colors.textMuted,
+                          errorBuilder: (context, error, stack) => Container(
+                            width: 56,
+                            height: 56,
+                            color: context.colors.surface2,
+                            child: Icon(
+                              Icons.image_not_supported_outlined,
+                              color: context.colors.textMuted,
+                            ),
                           ),
                         ),
                       ),
@@ -319,15 +297,117 @@ class _HomeTabState extends State<_HomeTab> {
                         alignment: Alignment.centerLeft,
                         child: DiseaseBadge(label: scan.predictedLabel),
                       ),
-                      subtitle: Text(
-                        '${(scan.confidence * 100).toStringAsFixed(0)}% confidence',
-                        style: TextStyle(color: context.colors.textMuted),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
+                        child: Text(
+                          '${(scan.confidence * 100).toStringAsFixed(0)}% confidence'
+                          '  ·  ${formatDateTime(scan.scannedAt)}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: context.colors.textMuted,
+                          ),
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.chevron_right,
+                        color: context.colors.textMuted,
                       ),
                     ),
                   );
                 }).toList(),
               );
             },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Tells the user where the scan button is. It is not a button itself, so the
+// icon sits in a soft square instead of the solid circle used by the real one.
+class _ScanHint extends StatelessWidget {
+  const _ScanHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: context.colors.line),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: context.colors.accentSoft,
+              borderRadius: BorderRadius.circular(AppRadius.control),
+            ),
+            child: Icon(
+              Icons.camera_alt_outlined,
+              color: context.colors.accentText,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.lg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Check a pineapple',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Tap the camera button below to scan for diseases.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: context.colors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Shown in place of the list before the first scan
+class _NoScansYet extends StatelessWidget {
+  const _NoScansYet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.section,
+      ),
+      decoration: BoxDecoration(
+        color: context.colors.surface2.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: context.colors.line),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.eco_outlined, size: 32, color: context.colors.textMuted),
+          const SizedBox(height: AppSpacing.sm),
+          const Text(
+            'No scans yet',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Your last three scans will show up here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: context.colors.textMuted),
           ),
         ],
       ),

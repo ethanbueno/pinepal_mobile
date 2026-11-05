@@ -99,3 +99,13 @@ class AppRadius {
   static const card = 14.0; // cards
   static const pill = 999.0; // badges
 }
+
+// Spacing steps, so every screen keeps the same rhythm
+class AppSpacing {
+  static const xs = 4.0;
+  static const sm = 8.0;
+  static const md = 12.0;
+  static const lg = 16.0;
+  static const page = 20.0; // padding around a screen
+  static const section = 28.0; // space between sections
+}
