@@ -15,7 +15,7 @@ import 'disease_badge.dart';
 // The street map comes from OpenStreetMap, so it needs internet. flutter_map
 // keeps the tiles it has already shown, so places seen before still load
 // offline; anywhere else the circles and dots still show on a plain background.
-class ScanHeatMap extends StatelessWidget {
+class ScanHeatMap extends StatefulWidget {
   final List<DashboardScan> scans; // only scans with GPS
   final double? height; // null = fill the space it is given
   final bool interactive; // false for the small preview on the dashboard
@@ -27,12 +27,28 @@ class ScanHeatMap extends StatelessWidget {
     this.interactive = true,
   });
 
+  @override
+  State<ScanHeatMap> createState() => _ScanHeatMapState();
+}
+
+class _ScanHeatMapState extends State<ScanHeatMap> {
   // Heat circle sizes in meters: a wide faint one and a smaller stronger one
   static const _outerRadius = 120.0;
   static const _innerRadius = 45.0;
 
+  // Set when a map tile could not be downloaded (no internet), so the map
+  // can say why the background is empty
+  bool _tilesFailed = false;
+
+  void _onTileError(TileImage tile, Object error, StackTrace? stackTrace) {
+    if (!_tilesFailed && mounted) setState(() => _tilesFailed = true);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final scans = widget.scans;
+    final interactive = widget.interactive;
+    final height = widget.height;
     final spots = _groupBySpot(scans);
 
     final map = FlutterMap(
@@ -62,6 +78,7 @@ class ScanHeatMap extends StatelessWidget {
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           // OpenStreetMap asks every app to say who it is
           userAgentPackageName: 'com.example.pinepal_mobile',
+          errorTileCallback: _onTileError,
         ),
         CircleLayer(
           circles: [
@@ -88,9 +105,53 @@ class ScanHeatMap extends StatelessWidget {
       ],
     );
 
+    final mapWithNotice = Stack(
+      children: [
+        map,
+        if (_tilesFailed)
+          Positioned(
+            left: AppSpacing.sm,
+            right: AppSpacing.sm,
+            bottom: AppSpacing.sm,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: context.colors.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                  border: Border.all(color: context.colors.line),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.cloud_off_outlined,
+                      size: 18,
+                      color: context.colors.textMuted,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    const Expanded(
+                      child: Text(
+                        'The street map needs internet. Your scan spots are '
+                        'still shown.',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.control),
-      child: height == null ? map : SizedBox(height: height, child: map),
+      child: height == null
+          ? mapWithNotice
+          : SizedBox(height: height, child: mapWithNotice),
     );
   }
 
