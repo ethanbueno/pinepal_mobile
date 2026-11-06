@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../services/app_settings.dart';
 import '../theme/app_colors.dart';
-import '../utils/municipalities.dart';
 import 'labeled_field.dart';
+import 'municipality_dropdown.dart';
 
 // Opens the sheet where the farmer edits the farm name and municipality.
 // They are added to every new scan and sent with it when syncing.
@@ -28,7 +28,10 @@ class _FarmDetailsSheetState extends State<_FarmDetailsSheet> {
   late final TextEditingController _farm = TextEditingController(
     text: widget.settings.farmName,
   );
-  late String _municipality = widget.settings.municipality;
+  // null until the farmer picks one; the farm details can't be saved without it
+  late String? _municipality = widget.settings.municipality.isEmpty
+      ? null
+      : widget.settings.municipality;
 
   @override
   void dispose() {
@@ -38,7 +41,7 @@ class _FarmDetailsSheetState extends State<_FarmDetailsSheet> {
 
   Future<void> _save() async {
     await widget.settings.setFarmName(_farm.text);
-    await widget.settings.setMunicipality(_municipality);
+    await widget.settings.setMunicipality(_municipality!);
     if (mounted) Navigator.pop(context);
   }
 
@@ -75,35 +78,9 @@ class _FarmDetailsSheetState extends State<_FarmDetailsSheet> {
               textInputAction: TextInputAction.done,
             ),
             const SizedBox(height: 14),
-            Text(
-              'Municipality',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: context.colors.text,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.control),
-                border: Border.all(color: context.colors.line),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _municipality,
-                  isExpanded: true,
-                  dropdownColor: context.colors.surface,
-                  items: [
-                    for (final name in municipalities)
-                      DropdownMenuItem(value: name, child: Text(name)),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) setState(() => _municipality = value);
-                  },
-                ),
-              ),
+            MunicipalityDropdown(
+              value: _municipality,
+              onChanged: (value) => setState(() => _municipality = value),
             ),
             const SizedBox(height: 20),
             SizedBox(
@@ -112,7 +89,7 @@ class _FarmDetailsSheetState extends State<_FarmDetailsSheet> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                onPressed: _save,
+                onPressed: _municipality == null ? null : _save,
                 child: const Text('Save'),
               ),
             ),

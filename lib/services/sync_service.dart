@@ -59,7 +59,7 @@ class SyncService {
           token: token,
           // Scans taken before the farm details existed get the current ones
           farmName: scan.farmName ?? _nonEmpty(settings.farmName),
-          municipality: scan.municipality ?? settings.municipality,
+          municipality: scan.municipality ?? _nonEmpty(settings.municipality),
         );
         await db.markSynced(scan.scanUuid);
         uploaded++;

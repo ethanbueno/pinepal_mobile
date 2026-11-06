@@ -272,7 +272,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(color: context.colors.textMuted, fontSize: 13),
             ),
           ),
-        _infoRow(Icons.map_outlined, _settings.municipality),
+        _infoRow(
+          Icons.map_outlined,
+          _settings.municipality.isEmpty
+              ? 'No municipality yet'
+              : _settings.municipality,
+        ),
       ],
     );
   }

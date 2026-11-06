@@ -119,6 +119,18 @@ class DatabaseHelper {
     );
   }
 
+  // UPDATE: the municipality the farmer picked for this scan.
+  // The scan goes back to Pending, so the change is uploaded on the next sync.
+  Future<void> updateMunicipality(String scanUuid, String municipality) async {
+    final db = await database;
+    await db.update(
+      'scans',
+      {'municipality': municipality, 'synced': 0},
+      where: 'scan_uuid = ?',
+      whereArgs: [scanUuid],
+    );
+  }
+
   // UPDATE: the farmer's feedback and notes (pass null to clear any of them).
   // The scan goes back to Pending, so the change is uploaded on the next sync.
   Future<void> updateFeedback(

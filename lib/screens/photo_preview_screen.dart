@@ -12,6 +12,7 @@ import '../services/database_helper.dart';
 import '../services/location_service.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
+import '../widgets/municipality_dropdown.dart';
 import 'result_detail_screen.dart';
 
 // Photo on top, a rounded sheet at the bottom. Tapping "Analyze Photo" runs
@@ -42,7 +43,14 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
   bool _analyzing = false;
   ClassificationResult? _result;
   ScanRecord? _savedScan; // set once the scan is in the database
+  bool _saving = false;
   String? _error;
+
+  // This scan's municipality: the farm's default, which the farmer can change for this
+  // scan. Null when the farm has none yet; the scan then waits until one is picked.
+  String? _municipality = AppSettings.instance.municipality.isEmpty
+      ? null
+      : AppSettings.instance.municipality;
 
   @override
   void dispose() {
@@ -71,7 +79,32 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       if (mounted) setState(() => _analyzing = false);
     }
 
-    await _saveScan(_result!);
+    if (_municipality != null) await _saveScan(_result!);
+  }
+
+  // Picking a municipality. A farm without one takes it as its default; a scan
+  // that is already saved gets it, and the change is synced like a note.
+  Future<void> _chooseMunicipality(String value) async {
+    setState(() => _municipality = value);
+    final settings = AppSettings.instance;
+    if (settings.municipality.isEmpty) await settings.setMunicipality(value);
+
+    final saved = _savedScan;
+    if (saved == null) {
+      await _saveScan(_result!);
+      return;
+    }
+    try {
+      await DatabaseHelper.instance.updateMunicipality(saved.scanUuid, value);
+      SyncController.instance.onLocalChange();
+      if (mounted) {
+        setState(() => _savedScan = saved.copyWith(municipality: value));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = 'Could not change the municipality: $e');
+      }
+    }
   }
 
   // Camera and gallery files live in a cache folder the OS may clear, so the
@@ -91,6 +124,8 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
 
   // Saves the finished scan to the local database so it shows in History.
   Future<void> _saveScan(ClassificationResult result) async {
+    if (_saving) return;
+    _saving = true;
     try {
       final imagePath = await _persistImage();
       final position = await LocationService.getCurrentLocation();
@@ -107,7 +142,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
         latitude: position.latitude,
         longitude: position.longitude,
         scannedAt: DateTime.now(),
-        municipality: settings.municipality,
+        municipality: _municipality,
         farmName: settings.farmName.isEmpty ? null : settings.farmName,
       );
       await DatabaseHelper.instance.insertScan(record);
@@ -115,7 +150,21 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
       if (mounted) setState(() => _savedScan = record);
     } catch (e) {
       if (mounted) setState(() => _error = 'Could not save the scan: $e');
+    } finally {
+      _saving = false;
     }
+  }
+
+  String _municipalityHint() {
+    final farm = AppSettings.instance.municipality;
+    if (_municipality == null) {
+      return 'Your farm has no municipality yet. Choose it to save this scan; '
+          'it becomes the default for your next scans.';
+    }
+    if (_municipality == farm) {
+      return 'Your farm\'s municipality. Change it here for this scan only.';
+    }
+    return 'For this scan only. Your farm\'s municipality stays $farm.';
   }
 
   // "Crown_Rot_Disease" -> "Crown Rot Disease"
@@ -346,6 +395,17 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
             ],
           ),
         ),
+
+      const SizedBox(height: 16),
+      MunicipalityDropdown(
+        value: _municipality,
+        onChanged: (value) => _chooseMunicipality(value),
+      ),
+      const SizedBox(height: 6),
+      Text(
+        _municipalityHint(),
+        style: TextStyle(color: context.colors.textMuted, fontSize: 12),
+      ),
 
       const SizedBox(height: 12),
       if (_savedScan != null)

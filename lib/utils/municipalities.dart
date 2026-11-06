@@ -1,6 +1,6 @@
 // All 3 cities and 34 municipalities of Isabela, the same list and spelling as the
 // web dashboard (src/utils/diseases.js), so scans from the phone match its filters
-// and map, in A to Z order. The system focuses on Echague, so that is the default.
+// and map, in A to Z order. There is no default: the farmer picks their own.
 const List<String> municipalities = [
   'Alicia',
   'Angadanan',
@@ -40,5 +40,3 @@ const List<String> municipalities = [
   'Santo Tomas',
   'Tumauini',
 ];
-
-const String defaultMunicipality = 'Echague';
