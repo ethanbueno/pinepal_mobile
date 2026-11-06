@@ -49,6 +49,9 @@ dependencies:
   shared_preferences: ^2.5.6
   share_plus: ^13.3.1
   flutter_secure_storage: ^11.2.0
+  # map of the farmer's own scan spots on the dashboard (OpenStreetMap)
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
 
 dev_dependencies:
   flutter_test:

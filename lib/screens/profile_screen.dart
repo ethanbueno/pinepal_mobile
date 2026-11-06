@@ -70,7 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         listenable: Listenable.merge([_auth, _settings, _sync]),
         builder: (context, _) {
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.page),
             children: [
               _buildAccount(),
               const SizedBox(height: 12),

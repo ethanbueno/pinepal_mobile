@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import '../models/dashboard_stats.dart';
 import '../models/scan_record.dart';
 import 'app_settings.dart';
 import 'auth_controller.dart';
@@ -122,6 +123,18 @@ class ApiClient {
     }
 
     await _send(request, _uploadTimeout);
+  }
+
+  // The farmer's own scans on the server, for the Online view of the
+  // dashboard. Works with an account token or this phone's own token.
+  Future<List<DashboardScan>> getMyScans({required String token}) async {
+    final request = http.Request('GET', _uri('/api/mobile/scans'));
+    request.headers['Authorization'] = 'Bearer $token';
+    final json = await _send(request, _timeout);
+    final rows = json['scans'] as List<dynamic>? ?? [];
+    return rows
+        .map((row) => DashboardScan.fromJson(row as Map<String, dynamic>))
+        .toList();
   }
 
   // Used by "Test connection" in Settings

@@ -52,7 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         listenable: Listenable.merge([_settings, _theme]),
         builder: (context, _) {
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.page),
             children: [
               _buildSync(),
               const SizedBox(height: 12),

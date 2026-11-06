@@ -7,6 +7,7 @@ import 'package:pinepal_mobile/widgets/protocol_cards.dart';
 
 void main() {
   final protocol = RemediationProtocol(
+    key: 'Crown Rot',
     name: 'Crown Rot',
     scientificName: 'Thielaviopsis paradoxa',
     severity: 'High',
@@ -47,6 +48,11 @@ void main() {
     );
     expect(find.byIcon(Icons.center_focus_weak), findsNothing);
     expect(find.byIcon(Icons.shield_outlined), findsNothing);
+
+    // Same section titles as the remediation guide on the website
+    expect(find.text('Symptoms'), findsOneWidget);
+    expect(find.text('Immediate action'), findsOneWidget);
+    expect(find.text('Prevention'), findsOneWidget);
 
     // Steps keep their numbers because the order matters
     expect(find.text('1.'), findsOneWidget);

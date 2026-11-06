@@ -10,6 +10,7 @@ import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/tile_card.dart';
 import '../widgets/disease_badge.dart';
+import '../widgets/empty_state.dart';
 import '../utils/format.dart';
 import 'edit_scan_screen.dart';
 import 'result_detail_screen.dart';
@@ -336,34 +337,39 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (snapshot.hasError) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Could not load scans: ${snapshot.error}'),
-            TextButton(onPressed: _reload, child: const Text('Retry')),
-          ],
-        ),
+      return ListView(
+        padding: const EdgeInsets.all(AppSpacing.page),
+        children: [
+          EmptyState(
+            icon: Icons.error_outline,
+            title: 'Could not load scans',
+            text: '${snapshot.error}',
+            action: OutlinedButton(
+              onPressed: _reload,
+              child: const Text('Retry'),
+            ),
+          ),
+        ],
       );
     }
 
     if (scans.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.history, size: 64, color: context.colors.textMuted),
-            SizedBox(height: 12),
-            Text('No scans yet', style: TextStyle(fontSize: 16)),
-          ],
-        ),
+      return ListView(
+        padding: const EdgeInsets.all(AppSpacing.page),
+        children: const [
+          EmptyState(
+            icon: Icons.history,
+            title: 'No scans yet',
+            text: 'Scans you take with the camera button are saved here.',
+          ),
+        ],
       );
     }
 
     return RefreshIndicator(
       onRefresh: () async => _reload(),
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.page),
         itemCount: scans.length,
         itemBuilder: (context, index) => _buildTile(scans[index]),
       ),

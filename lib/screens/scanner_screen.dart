@@ -263,11 +263,14 @@ class _ScannerScreenState extends State<ScannerScreen>
   Widget build(BuildContext context) {
     // The camera screen is always dark, whatever theme the app uses
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: overlayStyleFor(Brightness.dark, background: Colors.black),
+      value: overlayStyleFor(
+        Brightness.dark,
+        background: CameraColors.background,
+      ),
       child: Theme(
         data: buildTheme(Brightness.dark),
         child: Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: CameraColors.background,
           body: SafeArea(
             child: Column(
               children: [
@@ -351,7 +354,7 @@ class _ScannerScreenState extends State<ScannerScreen>
           child: AnimatedOpacity(
             opacity: _shutterFlash ? 0.6 : 0,
             duration: Duration(milliseconds: _shutterFlash ? 30 : 250),
-            child: const ColoredBox(color: Colors.white),
+            child: const ColoredBox(color: CameraColors.foreground),
           ),
         ),
       ],
