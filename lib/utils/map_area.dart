@@ -77,7 +77,11 @@ class LockToArea extends CameraConstraint {
         half.height,
       ),
     );
-    if (newCenter == center) return camera;
+    // Already in place (within half a pixel): keep the same camera. Checking
+    // for an exact match is not enough, because turning the centre into pixels
+    // and back can change it by a tiny bit, and flutter_map then reports the
+    // map as out of bounds when the theme changes.
+    if ((newCenter - center).distance < 0.5) return camera;
     return camera.withPosition(center: camera.unprojectAtZoom(newCenter, zoom));
   }
 }
