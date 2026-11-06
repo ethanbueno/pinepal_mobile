@@ -7,11 +7,11 @@ import '../services/database_helper.dart';
 import '../services/label_service.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
-import '../widgets/disease_badge.dart';
-import '../widgets/empty_state.dart';
+import 'disease_badge.dart';
+import 'empty_state.dart';
 import '../utils/map_area.dart';
-import '../widgets/scan_heat_map.dart';
-import '../widgets/section_card.dart';
+import 'scan_heat_map.dart';
+import 'section_card.dart';
 
 // Where the dashboard numbers come from
 enum DashboardSource {
@@ -22,9 +22,10 @@ enum DashboardSource {
 // The farmer's own numbers: scans per condition, the last 8 weeks and a map
 // of where they scanned. Only this farmer's scans, never other farms'; the
 // province-wide map and analytics are on the web dashboard.
-// Opened from the "My farm" card on the Home tab.
-class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key, this.api, this.auth, this.loadPhoneScans});
+// Shown right on the Home tab. It is not scrollable itself: it sits inside the
+// Home tab's list. Give it a new key to load the numbers again.
+class FarmDashboard extends StatefulWidget {
+  const FarmDashboard({super.key, this.api, this.auth, this.loadPhoneScans});
 
   // Leave empty to use the shared ones (tests pass their own)
   final ApiClient? api;
@@ -32,7 +33,7 @@ class DashboardScreen extends StatefulWidget {
   final Future<List<DashboardScan>> Function()? loadPhoneScans;
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  State<FarmDashboard> createState() => _FarmDashboardState();
 }
 
 class _DashboardData {
@@ -42,7 +43,7 @@ class _DashboardData {
   const _DashboardData(this.stats, this.labels);
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _FarmDashboardState extends State<FarmDashboard> {
   late final _api = widget.api ?? ApiClient();
   late final _auth = widget.auth ?? AuthController.instance;
 
@@ -92,87 +93,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  Future<void> _refresh() async {
-    setState(() {
-      _data = _load();
-    });
-    try {
-      await _data;
-    } catch (_) {
-      // the error is shown by the FutureBuilder
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('My farm')),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.page),
-          children: [
-            // The toggle between the phone's data and the server's data
-            SizedBox(
-              width: double.infinity,
-              child: SegmentedButton<DashboardSource>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(
-                    value: DashboardSource.phone,
-                    icon: Icon(Icons.phone_android),
-                    label: Text('On this phone'),
-                  ),
-                  ButtonSegment(
-                    value: DashboardSource.online,
-                    icon: Icon(Icons.cloud_outlined),
-                    label: Text('Online'),
-                  ),
-                ],
-                selected: {_source},
-                onSelectionChanged: (picked) => _show(picked.first),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // The toggle between the phone's data and the server's data
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<DashboardSource>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                value: DashboardSource.phone,
+                icon: Icon(Icons.phone_android),
+                label: Text('On this phone'),
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            _SourceNote(source: _source),
-            const SizedBox(height: AppSpacing.lg),
-            FutureBuilder<_DashboardData>(
-              future: _data,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const Padding(
-                    padding: EdgeInsets.all(AppSpacing.section),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                if (snapshot.hasError) {
-                  return EmptyState(
-                    icon: Icons.cloud_off_outlined,
-                    title: 'Cannot show the online data',
-                    text: snapshot.error.toString(),
-                    action: OutlinedButton(
-                      onPressed: () => _show(DashboardSource.phone),
-                      child: const Text('Show the phone data'),
-                    ),
-                  );
-                }
-                final data = snapshot.data!;
-                if (data.stats.total == 0) {
-                  return EmptyState(
-                    icon: Icons.eco_outlined,
-                    title: 'No scans yet',
-                    text: _source == DashboardSource.phone
-                        ? 'Scan a pineapple and your numbers will show up here.'
-                        : 'None of your scans are on the server yet. Sync them '
-                              'from Settings.',
-                  );
-                }
-                return _DashboardBody(data: data);
-              },
-            ),
-          ],
+              ButtonSegment(
+                value: DashboardSource.online,
+                icon: Icon(Icons.cloud_outlined),
+                label: Text('Online'),
+              ),
+            ],
+            selected: {_source},
+            onSelectionChanged: (picked) => _show(picked.first),
+          ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.sm),
+        _SourceNote(source: _source),
+        const SizedBox(height: AppSpacing.lg),
+        FutureBuilder<_DashboardData>(
+          future: _data,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Padding(
+                padding: EdgeInsets.all(AppSpacing.section),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasError) {
+              return EmptyState(
+                icon: Icons.cloud_off_outlined,
+                title: 'Cannot show the online data',
+                text: snapshot.error.toString(),
+                action: OutlinedButton(
+                  onPressed: () => _show(DashboardSource.phone),
+                  child: const Text('Show the phone data'),
+                ),
+              );
+            }
+            final data = snapshot.data!;
+            if (data.stats.total == 0) {
+              return EmptyState(
+                icon: Icons.eco_outlined,
+                title: 'No scans yet',
+                text: _source == DashboardSource.phone
+                    ? 'Scan a pineapple and your numbers will show up here.'
+                    : 'None of your scans are on the server yet. Sync them '
+                          'from Settings.',
+              );
+            }
+            return _DashboardBody(data: data);
+          },
+        ),
+      ],
     );
   }
 }
