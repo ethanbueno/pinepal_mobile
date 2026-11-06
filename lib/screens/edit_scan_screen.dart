@@ -7,6 +7,7 @@ import '../services/database_helper.dart';
 import '../services/label_service.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
+import '../utils/image_size.dart';
 
 // The feedback screen. The prediction and confidence are read-only because
 // they are what the model produced; only the farmer's feedback and notes can
@@ -220,7 +221,13 @@ class _EditScanScreenState extends State<EditScanScreen> {
                     child: SizedBox(
                       height: 180,
                       width: double.infinity,
-                      child: Image.file(image, fit: BoxFit.cover),
+                      child: Image.file(
+                        image,
+                        fit: BoxFit.cover,
+                        cacheWidth: screenWidthPixels(context),
+                        errorBuilder: (context, error, stack) =>
+                            const SizedBox.shrink(),
+                      ),
                     ),
                   ),
                 const SizedBox(height: 16),

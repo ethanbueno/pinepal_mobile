@@ -12,6 +12,7 @@ import '../widgets/tile_card.dart';
 import '../widgets/disease_badge.dart';
 import '../widgets/empty_state.dart';
 import '../utils/format.dart';
+import '../utils/image_size.dart';
 import 'edit_scan_screen.dart';
 import 'result_detail_screen.dart';
 
@@ -386,6 +387,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
             File(scan.imagePath),
             width: 56,
             height: 56,
+            // decode a small copy, not the full-size photo
+            cacheWidth: thumbnailPixels(context, 56),
             fit: BoxFit.cover,
             errorBuilder: (context, error, stack) => Icon(
               Icons.image_not_supported,

@@ -10,6 +10,7 @@ import '../services/label_service.dart';
 import '../services/protocol_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/format.dart';
+import '../utils/image_size.dart';
 import '../widgets/confidence_bar.dart';
 import '../widgets/protocol_cards.dart';
 import 'edit_scan_screen.dart';
@@ -146,6 +147,8 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                 ? Image.file(
                     file,
                     fit: BoxFit.cover,
+                    // as wide as the screen, not the full camera size
+                    cacheWidth: screenWidthPixels(context),
                     errorBuilder: (context, error, stack) => _placeholder(),
                   )
                 : _placeholder(),

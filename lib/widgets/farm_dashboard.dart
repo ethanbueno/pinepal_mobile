@@ -491,7 +491,14 @@ class _MapCard extends StatelessWidget {
           // opens the full screen map, where it can be moved and zoomed.
           Stack(
             children: [
-              ScanHeatMap(scans: mapped, height: 240, interactive: false),
+              // its own layer, so scrolling Home does not redraw the map
+              RepaintBoundary(
+                child: ScanHeatMap(
+                  scans: mapped,
+                  height: 240,
+                  interactive: false,
+                ),
+              ),
               Positioned.fill(
                 child: Material(
                   type: MaterialType.transparency,

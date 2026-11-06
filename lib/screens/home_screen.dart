@@ -7,6 +7,7 @@ import '../services/database_helper.dart';
 import '../theme/app_colors.dart';
 import '../theme/theme_controller.dart';
 import '../utils/format.dart';
+import '../utils/image_size.dart';
 import '../widgets/tile_card.dart';
 import '../widgets/disease_badge.dart';
 import '../widgets/farm_dashboard.dart';
@@ -326,6 +327,8 @@ class _HomeTabState extends State<_HomeTab> {
                             File(scan.imagePath),
                             width: 56,
                             height: 56,
+                            // decode a small copy, not the full-size photo
+                            cacheWidth: thumbnailPixels(context, 56),
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stack) => Container(
                               width: 56,

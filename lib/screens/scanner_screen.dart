@@ -194,7 +194,15 @@ class _ScannerScreenState extends State<ScannerScreen>
   Future<void> _pickFromGallery() async {
     if (_busy) return;
     try {
-      final picked = await _picker.pickImage(source: ImageSource.gallery);
+      // Phone photos can be 12-50 megapixels, which are slow to decode and
+      // heavy to keep. The model only looks at 224 x 224, so Android shrinks
+      // the photo to at most 1024 px while picking it (fast, native code).
+      final picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 92,
+      );
       if (picked != null) {
         final result = await _showPreview(picked.path, 'Gallery');
         // The photo wasn't a pineapple: open the gallery again right away
