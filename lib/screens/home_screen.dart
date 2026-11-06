@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
-import '../models/dashboard_stats.dart';
 import '../models/scan_record.dart';
 import '../services/database_helper.dart';
 import '../theme/app_colors.dart';
@@ -10,7 +9,7 @@ import '../theme/theme_controller.dart';
 import '../utils/format.dart';
 import '../widgets/tile_card.dart';
 import '../widgets/disease_badge.dart';
-import 'dashboard_screen.dart';
+import '../widgets/farm_dashboard.dart';
 import 'guide_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
@@ -198,6 +197,17 @@ class _HomeTab extends StatefulWidget {
 class _HomeTabState extends State<_HomeTab> {
   late Future<List<ScanRecord>> _recent;
 
+  // Goes up to make the dashboard load its numbers again
+  int _dashboardVersion = 0;
+
+  // Reloads the dashboard and the recent scans, after a pull or an edit
+  void _reloadAll() {
+    setState(() {
+      _recent = _loadRecent();
+      _dashboardVersion++;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -214,130 +224,147 @@ class _HomeTabState extends State<_HomeTab> {
       context,
       MaterialPageRoute(builder: (context) => ResultDetailScreen(scan: scan)),
     ).then((_) {
-      if (mounted) {
-        setState(() {
-          _recent = _loadRecent();
-        });
-      }
+      // the scan may have been verified or deleted
+      if (mounted) _reloadAll();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.page),
-        children: [
-          // Logo with the app name and a short line under it
-          Row(
-            children: [
-              Image.asset('assets/icons/logo.png', width: 48),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'PINEPAL',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.2,
-                        height: 1.1,
+      child: RefreshIndicator(
+        onRefresh: () async => _reloadAll(),
+        child: ListView(
+          // so pull to refresh also works when the page is short
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSpacing.page),
+          children: [
+            // Logo with the app name and a short line under it
+            Row(
+              children: [
+                Image.asset('assets/icons/logo.png', width: 48),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'PINEPAL',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.2,
+                          height: 1.1,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Pineapple disease scanner',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: context.colors.textMuted,
+                      const SizedBox(height: 2),
+                      Text(
+                        'Pineapple disease scanner',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: context.colors.textMuted,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const _ThemeToggle(),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.section),
+                const _ThemeToggle(),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.section),
 
-          const _ScanHint(),
-          const SizedBox(height: AppSpacing.md),
-          const _FarmCard(),
-          const SizedBox(height: AppSpacing.section),
+            const _ScanHint(),
+            const SizedBox(height: AppSpacing.section),
 
-          const Text(
-            'Recent scans',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          FutureBuilder<List<ScanRecord>>(
-            future: _recent,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const Padding(
-                  padding: EdgeInsets.all(AppSpacing.page),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              final scans = snapshot.data ?? [];
-              if (scans.isEmpty) {
-                return const _NoScansYet();
-              }
-              return Column(
-                children: scans.map((scan) {
-                  return TileCard(
-                    child: ListTile(
-                      onTap: () => _openScan(scan),
-                      minVerticalPadding: AppSpacing.md,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                      ),
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(AppRadius.control),
-                        child: Image.file(
-                          File(scan.imagePath),
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stack) => Container(
+            // The farmer's dashboard, right on Home
+            Row(
+              children: [
+                Icon(Icons.insights_outlined, color: context.colors.accentText),
+                const SizedBox(width: AppSpacing.sm),
+                const Text(
+                  'My farm',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            FarmDashboard(key: ValueKey(_dashboardVersion)),
+            const SizedBox(height: AppSpacing.section),
+
+            const Text(
+              'Recent scans',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            FutureBuilder<List<ScanRecord>>(
+              future: _recent,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Padding(
+                    padding: EdgeInsets.all(AppSpacing.page),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final scans = snapshot.data ?? [];
+                if (scans.isEmpty) {
+                  return const _NoScansYet();
+                }
+                return Column(
+                  children: scans.map((scan) {
+                    return TileCard(
+                      child: ListTile(
+                        onTap: () => _openScan(scan),
+                        minVerticalPadding: AppSpacing.md,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                        ),
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.control,
+                          ),
+                          child: Image.file(
+                            File(scan.imagePath),
                             width: 56,
                             height: 56,
-                            color: context.colors.surface2,
-                            child: Icon(
-                              Icons.image_not_supported_outlined,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stack) => Container(
+                              width: 56,
+                              height: 56,
+                              color: context.colors.surface2,
+                              child: Icon(
+                                Icons.image_not_supported_outlined,
+                                color: context.colors.textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                        title: Align(
+                          alignment: Alignment.centerLeft,
+                          child: DiseaseBadge(label: scan.predictedLabel),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: AppSpacing.xs),
+                          child: Text(
+                            '${(scan.confidence * 100).toStringAsFixed(0)}% confidence'
+                            '  ·  ${formatDateTime(scan.scannedAt)}',
+                            style: TextStyle(
+                              fontSize: 13,
                               color: context.colors.textMuted,
                             ),
                           ),
                         ),
-                      ),
-                      title: Align(
-                        alignment: Alignment.centerLeft,
-                        child: DiseaseBadge(label: scan.predictedLabel),
-                      ),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.xs),
-                        child: Text(
-                          '${(scan.confidence * 100).toStringAsFixed(0)}% confidence'
-                          '  ·  ${formatDateTime(scan.scannedAt)}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: context.colors.textMuted,
-                          ),
+                        trailing: Icon(
+                          Icons.chevron_right,
+                          color: context.colors.textMuted,
                         ),
                       ),
-                      trailing: Icon(
-                        Icons.chevron_right,
-                        color: context.colors.textMuted,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              );
-            },
-          ),
-        ],
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -392,120 +419,6 @@ class _ScanHint extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// Three numbers from this phone's scans. Tap to open the full dashboard.
-class _FarmCard extends StatefulWidget {
-  const _FarmCard();
-
-  @override
-  State<_FarmCard> createState() => _FarmCardState();
-}
-
-class _FarmCardState extends State<_FarmCard> {
-  late Future<DashboardStats> _stats = _load();
-
-  Future<DashboardStats> _load() async {
-    final scans = await DatabaseHelper.instance.getAllScans();
-    return DashboardStats(scans.map(DashboardScan.fromRecord).toList());
-  }
-
-  Future<void> _open() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const DashboardScreen()),
-    );
-    if (mounted) {
-      setState(() {
-        _stats = _load();
-      });
-    }
-  }
-
-  Widget _number(String label, int? value) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value == null ? '-' : '$value',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-          ),
-          Text(
-            label,
-            style: TextStyle(fontSize: 13, color: context.colors.textMuted),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: context.colors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        side: BorderSide(color: context.colors.line),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: _open,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: FutureBuilder<DashboardStats>(
-            future: _stats,
-            builder: (context, snapshot) {
-              final stats = snapshot.data;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.insights_outlined,
-                        color: context.colors.accentText,
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      const Expanded(
-                        child: Text(
-                          'My farm',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        'Dashboard',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: context.colors.accentText,
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right,
-                        color: context.colors.accentText,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Row(
-                    children: [
-                      _number('Scans', stats?.total),
-                      _number('Problems', stats?.diseased),
-                      _number('Healthy', stats?.healthy),
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
       ),
     );
   }
