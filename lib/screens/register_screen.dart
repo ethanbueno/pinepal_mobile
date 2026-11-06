@@ -4,7 +4,7 @@ import '../services/api_client.dart';
 import '../services/auth_controller.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
-import '../widgets/labeled_field.dart';
+import '../widgets/auth_widgets.dart';
 
 // Create a farmer account (the server only allows farmers to sign up; officers
 // and admins are created by an admin on the web), then sign in with it. If
@@ -81,115 +81,256 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  // A different look from the sign in screen, like the web Register page:
+  // an amber "Join PinePal" header with how it works, then the form in groups
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Create account')),
       body: SafeArea(
+        top: false,
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.page),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.page),
-                decoration: BoxDecoration(
-                  color: context.colors.surface,
-                  borderRadius: BorderRadius.circular(AppRadius.card),
-                  border: Border.all(color: context.colors.line),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Create your account',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                      ),
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _JoinHeader(),
+                  const SizedBox(height: AppSpacing.lg),
+                  Container(
+                    padding: const EdgeInsets.all(AppSpacing.page),
+                    decoration: BoxDecoration(
+                      color: context.colors.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      border: Border.all(color: context.colors.line),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Farmer accounts work on the phone and on the web '
-                      'dashboard.',
-                      style: TextStyle(
-                        color: context.colors.textMuted,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    LabeledField(
-                      label: 'Full name',
-                      hint: 'Enter your full name',
-                      controller: _fullName,
-                      enabled: !_busy,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    const SizedBox(height: 16),
-                    LabeledField(
-                      label: 'Username',
-                      hint: 'Choose a username',
-                      controller: _username,
-                      enabled: !_busy,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    const SizedBox(height: 16),
-                    LabeledField(
-                      label: 'Password',
-                      hint: 'Choose a password',
-                      controller: _password,
-                      enabled: !_busy,
-                      obscure: true,
-                      textInputAction: TextInputAction.next,
-                    ),
-                    const SizedBox(height: 16),
-                    LabeledField(
-                      label: 'Confirm password',
-                      hint: 'Enter the password again',
-                      controller: _confirm,
-                      enabled: !_busy,
-                      obscure: true,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _register(),
-                    ),
-                    if (_error != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        _error!,
-                        style: TextStyle(
-                          color: context.colors.danger,
-                          fontSize: 13,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const _FormSectionTitle(
+                          number: 1,
+                          title: 'Your details',
                         ),
-                      ),
-                    ],
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        const SizedBox(height: AppSpacing.md),
+                        AuthField(
+                          label: 'Full name',
+                          controller: _fullName,
+                          enabled: !_busy,
+                          textInputAction: TextInputAction.next,
                         ),
-                        onPressed: _busy ? null : _register,
-                        child: _busy
-                            ? SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: context.colors.onAccent,
-                                ),
-                              )
-                            : const Text('Create account'),
-                      ),
+                        const SizedBox(height: AppSpacing.section),
+                        const _FormSectionTitle(number: 2, title: 'Account'),
+                        const SizedBox(height: AppSpacing.md),
+                        AuthField(
+                          label: 'Username',
+                          controller: _username,
+                          enabled: !_busy,
+                          textInputAction: TextInputAction.next,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        AuthField(
+                          label: 'Password',
+                          controller: _password,
+                          enabled: !_busy,
+                          obscure: true,
+                          textInputAction: TextInputAction.next,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        AuthField(
+                          label: 'Confirm password',
+                          controller: _confirm,
+                          enabled: !_busy,
+                          obscure: true,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _register(),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: context.colors.surface2,
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.control,
+                            ),
+                          ),
+                          child: Text(
+                            'This creates a farmer account. Farmer accounts '
+                            'work on the phone and on the web dashboard. '
+                            'Agricultural officers and admins are added by an '
+                            'admin.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.4,
+                              color: context.colors.textMuted,
+                            ),
+                          ),
+                        ),
+                        if (_error != null) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          AuthError(message: _error!),
+                        ],
+                        const SizedBox(height: AppSpacing.lg),
+                        PillButton(
+                          text: 'Create account',
+                          busy: _busy,
+                          onPressed: _busy ? null : _register,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  // goes back to the sign in screen, which opened this one
+                  TextButton(
+                    onPressed: _busy ? null : () => Navigator.pop(context),
+                    child: const Text('Already have an account? Log in'),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  const AuthFooter(),
+                ],
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+// Amber header with the app name, "Join PinePal" and the 3 steps as chips
+class _JoinHeader extends StatelessWidget {
+  const _JoinHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.page),
+      decoration: BoxDecoration(
+        color: context.colors.accentSoft,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: context.colors.accent.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AuthHeadline(text: 'Join ', highlight: 'PinePal'),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'A free farmer account for checking your pineapples and keeping '
+            'your farm healthy.',
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.4,
+              color: context.colors.textMuted,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          const Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              _StepChip(
+                number: 1,
+                icon: Icons.document_scanner_outlined,
+                text: 'Scan',
+              ),
+              _StepChip(
+                number: 2,
+                icon: Icons.menu_book_outlined,
+                text: 'Get the care guide',
+              ),
+              _StepChip(
+                number: 3,
+                icon: Icons.place_outlined,
+                text: 'Track your farm',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// "1 Scan" with an icon, one of the how it works steps
+class _StepChip extends StatelessWidget {
+  final int number;
+  final IconData icon;
+  final String text;
+
+  const _StepChip({
+    required this.number,
+    required this.icon,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+      decoration: BoxDecoration(
+        color: context.colors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+        border: Border.all(color: context.colors.line),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: context.colors.accent,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 15, color: context.colors.onAccent),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '$number. $text',
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// A numbered heading over a group of fields
+class _FormSectionTitle extends StatelessWidget {
+  final int number;
+  final String title;
+
+  const _FormSectionTitle({required this.number, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: context.colors.accentSoft,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            '$number',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: context.colors.accentText,
+            ),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          title,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+      ],
     );
   }
 }

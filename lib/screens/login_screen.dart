@@ -4,7 +4,7 @@ import '../services/api_client.dart';
 import '../services/auth_controller.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
-import '../widgets/labeled_field.dart';
+import '../widgets/auth_widgets.dart';
 import 'register_screen.dart';
 
 // Sign in with the same account as the web dashboard. Scanning never needs
@@ -75,126 +75,101 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.pop(context, true);
   }
 
+  // Same layout as the web Login page: the brand and headline on top, the form
+  // under it (on a phone the web's two columns stack the same way)
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Sign in')),
+      appBar: AppBar(
+        // only the back arrow, the page has its own big title
+        backgroundColor: context.colors.canvas,
+        shape: const Border(),
+      ),
       body: SafeArea(
+        top: false,
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.page + 4,
+              AppSpacing.sm,
+              AppSpacing.page + 4,
+              AppSpacing.page,
+            ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: 440),
               child: Column(
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Image.asset('assets/icons/logo.png', width: 88),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'PINEPAL',
+                  const AuthBrand(),
+                  const SizedBox(height: AppSpacing.section),
+                  const AuthHeadline(
+                    text: 'Spot pineapple disease ',
+                    highlight: 'before it spreads.',
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    'Scan a fruit, get the diagnosis and treatment steps, and '
+                    'see where outbreaks are happening across Isabela.',
                     style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.4,
+                      fontSize: 15,
+                      height: 1.4,
+                      color: context.colors.textMuted,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(AppSpacing.page),
-                    decoration: BoxDecoration(
-                      color: context.colors.surface,
-                      borderRadius: BorderRadius.circular(AppRadius.card),
-                      border: Border.all(color: context.colors.line),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Login to your account',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Enter your username or email below to sign in',
-                          style: TextStyle(
-                            color: context.colors.textMuted,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        LabeledField(
-                          label: 'Username or email',
-                          hint: 'Enter username or email',
-                          controller: _username,
-                          enabled: !_busy,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                        ),
-                        const SizedBox(height: 16),
-                        LabeledField(
-                          label: 'Password',
-                          hint: 'Enter password',
-                          controller: _password,
-                          enabled: !_busy,
-                          obscure: !_showPassword,
-                          textInputAction: TextInputAction.done,
-                          onSubmitted: (_) => _signIn(),
-                          suffix: IconButton(
-                            tooltip: _showPassword
-                                ? 'Hide password'
-                                : 'Show password',
-                            icon: Icon(
-                              _showPassword
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
-                            ),
-                            onPressed: () =>
-                                setState(() => _showPassword = !_showPassword),
-                          ),
-                        ),
-                        if (_error != null) ...[
-                          const SizedBox(height: 12),
-                          Text(
-                            _error!,
-                            style: TextStyle(
-                              color: context.colors.danger,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            onPressed: _busy ? null : _signIn,
-                            child: _busy
-                                ? SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: context.colors.onAccent,
-                                    ),
-                                  )
-                                : const Text('Sign in'),
-                          ),
-                        ),
-                      ],
+                  const SizedBox(height: 36),
+
+                  const Text(
+                    'Log into PinePal',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  AuthField(
+                    label: 'Username or email',
+                    controller: _username,
+                    enabled: !_busy,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AuthField(
+                    label: 'Password',
+                    controller: _password,
+                    enabled: !_busy,
+                    obscure: !_showPassword,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _signIn(),
+                    suffix: IconButton(
+                      tooltip: _showPassword
+                          ? 'Hide password'
+                          : 'Show password',
+                      icon: Icon(
+                        _showPassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
+                      onPressed: () =>
+                          setState(() => _showPassword = !_showPassword),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  TextButton(
+                  if (_error != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    AuthError(message: _error!),
+                  ],
+                  const SizedBox(height: AppSpacing.lg),
+                  PillButton(
+                    text: 'Log in',
+                    busy: _busy,
+                    onPressed: _busy ? null : _signIn,
+                  ),
+                  const SizedBox(height: AppSpacing.section),
+                  const TextDivider(text: 'New to PinePal?'),
+                  const SizedBox(height: AppSpacing.section),
+                  PillButton(
+                    text: 'Create new account',
+                    outlined: true,
                     onPressed: _busy ? null : _openRegister,
-                    child: const Text("Don't have an account? Sign up"),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.section),
                   Text(
                     'You can scan without an account. Sign in only to sync '
                     'your scans.',
@@ -204,6 +179,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       fontSize: 12,
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  const AuthFooter(),
                 ],
               ),
             ),

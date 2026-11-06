@@ -71,7 +71,8 @@ void main() {
     // Signing in (or creating an account) is how a signed-out phone syncs
     await tester.tap(find.widgetWithText(ElevatedButton, 'Sync now'));
     await tester.pumpAndSettle();
-    expect(find.text("Don't have an account? Sign up"), findsOneWidget);
+    expect(find.text('Log into PinePal'), findsOneWidget);
+    expect(find.text('Create new account'), findsOneWidget);
   });
 
   testWidgets('signed out: shows the farmer ID this phone syncs as', (
