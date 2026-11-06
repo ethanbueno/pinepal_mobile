@@ -67,12 +67,14 @@ class ApiClient {
   Future<void> register({
     required String fullName,
     required String username,
+    required String email,
     required String password,
     String? deviceToken,
   }) async {
     await _sendJson('POST', '/api/auth/register', {
       'full_name': fullName,
       'username': username,
+      'email': email,
       'password': password,
       'role': 'farmer',
       'device_token': ?deviceToken,

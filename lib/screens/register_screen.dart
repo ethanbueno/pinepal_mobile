@@ -20,6 +20,7 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _fullName = TextEditingController();
   final _username = TextEditingController();
+  final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
 
@@ -30,6 +31,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _fullName.dispose();
     _username.dispose();
+    _email.dispose();
     _password.dispose();
     _confirm.dispose();
     super.dispose();
@@ -38,10 +40,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _register() async {
     final fullName = _fullName.text.trim();
     final username = _username.text.trim();
+    final email = _email.text.trim();
 
     String? problem;
-    if (fullName.isEmpty || username.isEmpty || _password.text.isEmpty) {
+    if (fullName.isEmpty ||
+        username.isEmpty ||
+        email.isEmpty ||
+        _password.text.isEmpty) {
       problem = 'All fields are required.';
+    } else if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+      problem = 'Enter a valid email address.';
     } else if (_password.text != _confirm.text) {
       problem = 'The passwords do not match.';
     }
@@ -60,6 +68,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await api.register(
         fullName: fullName,
         username: username,
+        email: email,
         password: _password.text,
         deviceToken: deviceToken,
       );
@@ -137,6 +146,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     label: 'Username',
                     controller: _username,
                     enabled: !_busy,
+                    textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AuthField(
+                    label: 'Email',
+                    controller: _email,
+                    enabled: !_busy,
+                    keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
                   ),
                   const SizedBox(height: AppSpacing.md),

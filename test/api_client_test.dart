@@ -138,12 +138,14 @@ void main() {
     await api.register(
       fullName: 'Maria Santos',
       username: 'maria',
+      email: 'maria@example.com',
       password: 'pw',
     );
 
     expect(seen.url.path, '/api/auth/register');
     expect(jsonDecode(seen.body)['role'], 'farmer');
     expect(jsonDecode(seen.body)['full_name'], 'Maria Santos');
+    expect(jsonDecode(seen.body)['email'], 'maria@example.com');
   });
 
   test(
