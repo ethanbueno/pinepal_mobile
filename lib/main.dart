@@ -38,6 +38,10 @@ class PinePalApp extends StatelessWidget {
           theme: buildTheme(Brightness.light),
           darkTheme: buildTheme(Brightness.dark),
           themeMode: mode,
+          // Switch light/dark at once. The default 200 ms fade rebuilds the
+          // whole app on every frame (the Home dashboard and its map too),
+          // which made the switch feel laggy.
+          themeAnimationDuration: Duration.zero,
           scrollBehavior: const AppScrollBehavior(),
           // Status bar icons follow the theme on every screen, including the
           // ones without an app bar
