@@ -8,6 +8,7 @@ import 'package:pinepal_mobile/services/app_settings.dart';
 import 'package:pinepal_mobile/services/auth_controller.dart';
 import 'package:pinepal_mobile/services/sync_controller.dart';
 import 'package:pinepal_mobile/theme/app_theme.dart';
+import 'package:pinepal_mobile/theme/theme_controller.dart';
 
 Future<AppSettings> showSettings(
   WidgetTester tester, {
@@ -46,13 +47,38 @@ void main() {
     expect(find.text('Manual'), findsOneWidget);
     expect(find.text('Automatic'), findsOneWidget);
     expect(find.text('Appearance'), findsOneWidget);
-    expect(find.text('Dark mode'), findsOneWidget);
+    expect(find.text('Light'), findsOneWidget);
+    expect(find.text('Dark'), findsOneWidget);
+    expect(find.text('Device'), findsOneWidget);
     expect(find.text('About'), findsOneWidget);
     expect(find.text('Version $appVersion'), findsOneWidget);
 
     // Farmers never see the server
     expect(find.text('Developer'), findsNothing);
     expect(find.text('Server address'), findsNothing);
+  });
+
+  testWidgets('appearance can be light, dark or follow the device', (
+    tester,
+  ) async {
+    final theme = ThemeController.instance;
+    await theme.setMode(ThemeMode.light);
+    await showSettings(tester);
+
+    await tester.tap(find.text('Device'));
+    await tester.pumpAndSettle();
+    expect(theme.value, ThemeMode.system);
+    expect(find.textContaining('Follows your phone'), findsOneWidget);
+
+    await tester.tap(find.text('Dark'));
+    await tester.pumpAndSettle();
+    expect(theme.value, ThemeMode.dark);
+
+    // remembered for the next launch
+    await ThemeController.load();
+    expect(theme.value, ThemeMode.dark);
+
+    await theme.setMode(ThemeMode.light);
   });
 
   testWidgets('Wi-Fi only appears with automatic sync', (tester) async {
