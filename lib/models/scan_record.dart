@@ -31,7 +31,8 @@ class ScanRecord {
 
   final String? notes;
 
-  // Where the scan was taken, from the farm details in Settings. They go to the web
+  // Where the scan was taken: the farm details in Settings, or the municipality the
+  // farmer picked for this scan. They go to the web
   // dashboard when syncing, where its filters and map use them.
   final String? municipality;
   final String? farmName;
@@ -127,6 +128,7 @@ class ScanRecord {
     bool clearVerifiedLabel = false,
     String? notes,
     bool clearNotes = false,
+    String? municipality,
   }) {
     return ScanRecord(
       scanUuid: scanUuid,
@@ -142,7 +144,7 @@ class ScanRecord {
       synced: synced,
       syncedAt: syncedAt,
       notes: clearNotes ? null : (notes ?? this.notes),
-      municipality: municipality,
+      municipality: municipality ?? this.municipality,
       farmName: farmName,
       feedback: clearFeedback ? null : (feedback ?? this.feedback),
       verifiedLabel: clearVerifiedLabel

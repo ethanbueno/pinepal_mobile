@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'screens/home_screen.dart';
+import 'screens/intro/splash_screen.dart';
 import 'services/app_settings.dart';
 import 'services/auth_controller.dart';
 import 'services/sync_controller.dart';
@@ -21,7 +22,10 @@ Future<void> main() async {
 }
 
 class PinePalApp extends StatelessWidget {
-  const PinePalApp({super.key});
+  // false skips the splash and onboarding and opens the home screen (tests)
+  final bool showIntro;
+
+  const PinePalApp({super.key, this.showIntro = true});
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +45,7 @@ class PinePalApp extends StatelessWidget {
             value: overlayStyleFor(Theme.of(context).brightness),
             child: child!,
           ),
-          home: const HomeScreen(),
+          home: showIntro ? const SplashScreen() : const HomeScreen(),
         );
       },
     );

@@ -32,13 +32,16 @@ class AppSettings extends ChangeNotifier {
   static const _wifiKey = 'sync_wifi_only';
   static const _farmKey = 'farm_name';
   static const _municipalityKey = 'municipality';
+  static const _introSeenKey = 'intro_seen';
 
   String? _serverOverride; // null = use the one the app was built with
   bool _developerOptions = false;
   SyncMode _syncMode = SyncMode.manual;
   bool _wifiOnly = true; // photos are big, so do not use mobile data by default
   String _farmName = '';
-  String _municipality = defaultMunicipality;
+  // '' until the farmer picks one, in the farm details or on their first scan
+  String _municipality = '';
+  bool _introSeen = false; // the onboarding and welcome screens show only once
 
   String get serverUrl => _serverOverride ?? defaultServerUrl;
   bool get usesCustomServer => _serverOverride != null;
@@ -50,6 +53,7 @@ class AppSettings extends ChangeNotifier {
   bool get wifiOnly => _wifiOnly;
   String get farmName => _farmName;
   String get municipality => _municipality;
+  bool get introSeen => _introSeen;
 
   Future<void> load() async {
     try {
@@ -62,9 +66,8 @@ class AppSettings extends ChangeNotifier {
       _wifiOnly = prefs.getBool(_wifiKey) ?? true;
       _farmName = prefs.getString(_farmKey) ?? '';
       final saved = prefs.getString(_municipalityKey);
-      _municipality = municipalities.contains(saved)
-          ? saved!
-          : defaultMunicipality;
+      _municipality = municipalities.contains(saved) ? saved! : '';
+      _introSeen = prefs.getBool(_introSeenKey) ?? false;
       notifyListeners();
     } catch (_) {
       // storage unavailable; the defaults still work for this launch
@@ -128,6 +131,12 @@ class AppSettings extends ChangeNotifier {
     _municipality = value;
     notifyListeners();
     await _save((p) => p.setString(_municipalityKey, value));
+  }
+
+  Future<void> setIntroSeen() async {
+    _introSeen = true;
+    notifyListeners();
+    await _save((p) => p.setBool(_introSeenKey, true));
   }
 
   Future<void> _save(Future<dynamic> Function(SharedPreferences) write) async {

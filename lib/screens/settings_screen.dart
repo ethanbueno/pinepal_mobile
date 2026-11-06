@@ -126,12 +126,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return SectionCard(
       title: 'Appearance',
       children: [
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Dark mode'),
-          value: _theme.value == ThemeMode.dark,
-          onChanged: (_) => _theme.toggle(),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<ThemeMode>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+              ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+              ButtonSegment(value: ThemeMode.system, label: Text('Device')),
+            ],
+            selected: {_theme.value},
+            onSelectionChanged: (selection) => _theme.setMode(selection.first),
+          ),
         ),
+        const SizedBox(height: 8),
+        Text(switch (_theme.value) {
+          ThemeMode.light => 'Always light.',
+          ThemeMode.dark => 'Always dark.',
+          ThemeMode.system =>
+            'Follows your phone: light or dark, the same as its setting.',
+        }, style: TextStyle(color: context.colors.textMuted, fontSize: 13)),
       ],
     );
   }

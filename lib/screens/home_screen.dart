@@ -470,7 +470,8 @@ class _ThemeToggle extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return IconButton(
       tooltip: dark ? 'Switch to light mode' : 'Switch to dark mode',
-      onPressed: ThemeController.instance.toggle,
+      onPressed: () =>
+          ThemeController.instance.toggle(Theme.of(context).brightness),
       icon: Icon(dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
       style: IconButton.styleFrom(
         side: BorderSide(color: context.colors.line),

@@ -165,19 +165,29 @@ void main() {
       settings: settings,
     );
 
-    // Nothing yet: it asks for the farm and shows the default municipality
+    // Nothing yet: it asks for the farm, and there is no municipality
     expect(find.textContaining('Add your farm name'), findsOneWidget);
-    expect(find.text('Echague'), findsOneWidget);
+    expect(find.text('No municipality yet'), findsOneWidget);
 
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
     expect(find.text('Farm details'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'Bueno Farm');
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Save'));
+    // Save waits for a municipality
+    final save = find.widgetWithText(ElevatedButton, 'Save');
+    expect(tester.widget<ElevatedButton>(save).onPressed, isNull);
+
+    await tester.tap(find.text('Choose a municipality'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Echague').last);
+    await tester.pumpAndSettle();
+    await tester.tap(save);
     await tester.pumpAndSettle();
 
     expect(settings.farmName, 'Bueno Farm');
+    expect(settings.municipality, 'Echague');
+    expect(find.text('Echague'), findsOneWidget);
     expect(find.text('Bueno Farm'), findsOneWidget);
     expect(find.text('Edit'), findsOneWidget);
     expect(find.textContaining('Add your farm name'), findsNothing);

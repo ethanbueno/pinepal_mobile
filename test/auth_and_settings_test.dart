@@ -92,7 +92,7 @@ void main() {
       final settings = AppSettings();
       expect(settings.syncMode, SyncMode.manual);
       expect(settings.wifiOnly, true);
-      expect(settings.municipality, 'Echague');
+      expect(settings.municipality, '');
       expect(settings.farmName, '');
     });
 
@@ -156,12 +156,12 @@ void main() {
     test('a municipality that is not in the list is ignored', () async {
       final settings = AppSettings();
       await settings.setMunicipality('Atlantis');
-      expect(settings.municipality, 'Echague');
+      expect(settings.municipality, '');
 
       SharedPreferences.setMockInitialValues({'municipality': 'Atlantis'});
       final loaded = AppSettings();
       await loaded.load();
-      expect(loaded.municipality, 'Echague');
+      expect(loaded.municipality, '');
     });
   });
 }
