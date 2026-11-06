@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 
-// Pieces shared by the sign in and create account screens. They copy the web
-// Login and Register pages (src/pages/Login.jsx): the logo with the app name,
-// a big headline, fields with the label inside the box, round pill buttons
-// and a line with text in the middle.
+// Pieces shared by the sign in and create account screens: the logo with the
+// app name, fields with the label inside the box (like the web Login page),
+// round pill buttons and the error box.
 
 // Logo with "PINEPAL" next to it
 class AuthBrand extends StatelessWidget {
@@ -26,35 +25,6 @@ class AuthBrand extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-// The big headline. [highlight] is drawn in amber, like on the web.
-class AuthHeadline extends StatelessWidget {
-  final String text;
-  final String highlight;
-
-  const AuthHeadline({super.key, required this.text, this.highlight = ''});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(
-        text: text,
-        children: [
-          TextSpan(
-            text: highlight,
-            style: TextStyle(color: context.colors.accentText),
-          ),
-        ],
-      ),
-      style: const TextStyle(
-        fontSize: 34,
-        fontWeight: FontWeight.w600,
-        height: 1.1,
-        letterSpacing: -0.5,
-      ),
     );
   }
 }
@@ -170,56 +140,6 @@ class PillButton extends StatelessWidget {
       ),
       onPressed: onPressed,
       child: child,
-    );
-  }
-}
-
-// ——— New to PinePal? ———
-class TextDivider extends StatelessWidget {
-  final String text;
-
-  const TextDivider({super.key, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    final line = Expanded(
-      child: Container(height: 1, color: context.colors.line),
-    );
-    return Row(
-      children: [
-        line,
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Text(
-            text,
-            style: TextStyle(fontSize: 12, color: context.colors.textMuted),
-          ),
-        ),
-        line,
-      ],
-    );
-  }
-}
-
-// Small logo and line at the bottom of the form, like the web
-class AuthFooter extends StatelessWidget {
-  const AuthFooter({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Image.asset('assets/icons/logo.png', width: 16),
-        const SizedBox(width: 6),
-        // Flexible so the line can wrap on very narrow screens
-        Flexible(
-          child: Text(
-            'Pineapple disease monitoring for Isabela',
-            style: TextStyle(fontSize: 12, color: context.colors.textMuted),
-          ),
-        ),
-      ],
     );
   }
 }

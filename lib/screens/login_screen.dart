@@ -75,13 +75,12 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.pop(context, true);
   }
 
-  // Same layout as the web Login page: the brand and headline on top, the form
-  // under it (on a phone the web's two columns stack the same way)
+  // A calm, simple page: the logo, a short title, the fields and one button
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // only the back arrow, the page has its own big title
+        // only the back arrow
         backgroundColor: context.colors.canvas,
         shape: const Border(),
       ),
@@ -89,40 +88,27 @@ class _LoginScreenState extends State<LoginScreen> {
         top: false,
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.page + 4,
-              AppSpacing.sm,
-              AppSpacing.page + 4,
-              AppSpacing.page,
-            ),
+            padding: const EdgeInsets.all(AppSpacing.page + 4),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
+              constraints: const BoxConstraints(maxWidth: 420),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const AuthBrand(),
                   const SizedBox(height: AppSpacing.section),
-                  const AuthHeadline(
-                    text: 'Spot pineapple disease ',
-                    highlight: 'before it spreads.',
+                  const Text(
+                    'Log into PinePal',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Scan a fruit, get the diagnosis and treatment steps, and '
-                    'see where outbreaks are happening across Isabela.',
+                    'Sign in to sync your scans with your account.',
                     style: TextStyle(
-                      fontSize: 15,
-                      height: 1.4,
+                      fontSize: 14,
                       color: context.colors.textMuted,
                     ),
                   ),
-                  const SizedBox(height: 36),
-
-                  const Text(
-                    'Log into PinePal',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.section),
                   AuthField(
                     label: 'Username or email',
                     controller: _username,
@@ -161,15 +147,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     busy: _busy,
                     onPressed: _busy ? null : _signIn,
                   ),
-                  const SizedBox(height: AppSpacing.section),
-                  const TextDivider(text: 'New to PinePal?'),
-                  const SizedBox(height: AppSpacing.section),
-                  PillButton(
-                    text: 'Create new account',
-                    outlined: true,
+                  const SizedBox(height: AppSpacing.md),
+                  TextButton(
                     onPressed: _busy ? null : _openRegister,
+                    child: const Text('New to PinePal? Create an account'),
                   ),
-                  const SizedBox(height: AppSpacing.section),
+                  const SizedBox(height: AppSpacing.lg),
                   Text(
                     'You can scan without an account. Sign in only to sync '
                     'your scans.',
@@ -179,8 +162,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       fontSize: 12,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  const AuthFooter(),
                 ],
               ),
             ),

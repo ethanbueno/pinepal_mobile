@@ -72,7 +72,7 @@ void main() {
     await tester.tap(find.widgetWithText(ElevatedButton, 'Sync now'));
     await tester.pumpAndSettle();
     expect(find.text('Log into PinePal'), findsOneWidget);
-    expect(find.text('Create new account'), findsOneWidget);
+    expect(find.text('New to PinePal? Create an account'), findsOneWidget);
   });
 
   testWidgets('signed out: shows the farmer ID this phone syncs as', (
