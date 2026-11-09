@@ -1,3 +1,4 @@
+import '../utils/municipalities.dart';
 import 'api_client.dart';
 import 'app_settings.dart';
 import 'database_helper.dart';
@@ -59,7 +60,7 @@ class SyncService {
           token: token,
           // Scans taken before the farm details existed get the current ones
           farmName: scan.farmName ?? _nonEmpty(settings.farmName),
-          municipality: scan.municipality ?? _nonEmpty(settings.municipality),
+          municipality: scanMunicipality, // every scan is synced under Echague
         );
         await db.markSynced(scan.scanUuid);
         uploaded++;

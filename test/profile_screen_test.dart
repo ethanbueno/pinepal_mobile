@@ -174,14 +174,9 @@ void main() {
     expect(find.text('Farm details'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'Bueno Farm');
-    // Save waits for a municipality
+    // The municipality is locked to Echague, so Save works right away
     final save = find.widgetWithText(ElevatedButton, 'Save');
-    expect(tester.widget<ElevatedButton>(save).onPressed, isNull);
-
-    await tester.tap(find.text('Choose a municipality'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Echague').last);
-    await tester.pumpAndSettle();
+    expect(tester.widget<ElevatedButton>(save).onPressed, isNotNull);
     await tester.tap(save);
     await tester.pumpAndSettle();
 

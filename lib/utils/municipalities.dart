@@ -1,3 +1,6 @@
+// Every scan is saved and synced under this municipality; the pickers are locked to it.
+const String scanMunicipality = 'Echague';
+
 // All 3 cities and 34 municipalities of Isabela, the same list and spelling as the
 // web dashboard (src/utils/diseases.js), so scans from the phone match its filters
 // and map, in A to Z order. There is no default: the farmer picks their own.
