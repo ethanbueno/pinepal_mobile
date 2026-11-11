@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/dashboard_stats.dart';
 import '../models/scan_record.dart';
+import '../models/user_profile.dart';
 import 'app_settings.dart';
 import 'auth_controller.dart';
 
@@ -139,6 +140,41 @@ class ApiClient {
         .toList();
   }
 
+  // The signed-in user's own details (needs an account token, not the phone's)
+  Future<UserProfile> getProfile({required String token}) async {
+    return UserProfile.fromJson(
+      await _sendJson('GET', '/api/profile', null, token),
+    );
+  }
+
+  // Only the name, farm name and farm size are saved; the server ignores the
+  // rest, so the important details can't be changed from the app.
+  Future<UserProfile> updateProfile({
+    required String token,
+    required String fullName,
+    String? farmName,
+    double? farmSizeHa,
+  }) async {
+    return UserProfile.fromJson(
+      await _sendJson('PUT', '/api/profile', {
+        'full_name': fullName,
+        'farm_name': ?farmName,
+        'farm_size_ha': ?farmSizeHa,
+      }, token),
+    );
+  }
+
+  Future<void> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _sendJson('POST', '/api/profile/password', {
+      'current_password': currentPassword,
+      'new_password': newPassword,
+    }, token);
+  }
+
   // Used by "Test connection" in Settings
   Future<String> ping() async {
     final json = await _sendJson('GET', '/');
@@ -159,8 +195,10 @@ class ApiClient {
     String method,
     String path, [
     Map<String, dynamic>? body,
+    String? token,
   ]) async {
     final request = http.Request(method, _uri(path));
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
     if (body != null) {
       request.headers['Content-Type'] = 'application/json';
       request.body = jsonEncode(body);
