@@ -4,6 +4,7 @@ import '../services/api_client.dart';
 import '../services/auth_controller.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
+import '../utils/municipalities.dart';
 import '../widgets/auth_widgets.dart';
 
 // Create a farmer account (the server only allows farmers to sign up; officers
@@ -19,6 +20,8 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _fullName = TextEditingController();
+  // locked: every account is in Echague (the server saves it as the farm's municipality)
+  final _municipality = TextEditingController(text: scanMunicipality);
   final _username = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
@@ -30,6 +33,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _fullName.dispose();
+    _municipality.dispose();
     _username.dispose();
     _email.dispose();
     _password.dispose();
@@ -138,6 +142,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _fullName,
                     enabled: !_busy,
                     textInputAction: TextInputAction.next,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AuthField(
+                    label: 'Municipality',
+                    controller: _municipality,
+                    enabled: false,
                   ),
                   const SizedBox(height: AppSpacing.lg),
                   Text('Account', style: groupLabel),

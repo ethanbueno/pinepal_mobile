@@ -13,7 +13,6 @@ import '../services/location_service.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
 import '../utils/municipalities.dart';
-import '../widgets/municipality_dropdown.dart';
 import 'result_detail_screen.dart';
 
 // Photo on top, a rounded sheet at the bottom. Tapping "Analyze Photo" runs
@@ -47,7 +46,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
   bool _saving = false;
   String? _error;
 
-  // Every scan is saved under Echague; the picker is shown locked.
+  // Every scan is saved under Echague; there is no municipality picker.
   static const String _municipality = scanMunicipality;
 
   @override
@@ -356,17 +355,6 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
             ],
           ),
         ),
-
-      const SizedBox(height: 16),
-      MunicipalityDropdown(
-        value: _municipality,
-        onChanged: null, // locked to Echague
-      ),
-      const SizedBox(height: 6),
-      Text(
-        'Scans are saved under Echague.',
-        style: TextStyle(color: context.colors.textMuted, fontSize: 12),
-      ),
 
       const SizedBox(height: 12),
       if (_savedScan != null)
