@@ -6,6 +6,8 @@ class UserProfile {
   final String username;
   final String? email;
   final String role;
+  final String
+  municipality; // users.municipality; a farmer's matches the farm's
   final DateTime? createdAt;
   final ProfileFarm? farm; // farmers only, and only once a farm is linked
 
@@ -13,6 +15,7 @@ class UserProfile {
     required this.fullName,
     required this.username,
     required this.role,
+    this.municipality = '',
     this.email,
     this.createdAt,
     this.farm,
@@ -26,6 +29,7 @@ class UserProfile {
       username: account['username'] as String? ?? '',
       email: account['email'] as String?,
       role: account['role'] as String? ?? 'farmer',
+      municipality: account['municipality'] as String? ?? '',
       createdAt: DateTime.tryParse(account['created_at'] as String? ?? ''),
       farm: farm is Map<String, dynamic> ? ProfileFarm.fromJson(farm) : null,
     );
