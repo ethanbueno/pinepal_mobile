@@ -1,23 +1,32 @@
 import 'package:flutter/material.dart';
 
+import '../services/api_client.dart';
 import '../services/app_settings.dart';
 import '../services/auth_controller.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
 import '../utils/format.dart';
 import '../widgets/farm_details_sheet.dart';
+import '../widgets/my_profile_view.dart';
 import '../widgets/section_card.dart';
 import 'login_screen.dart';
-import 'my_profile_screen.dart';
 import 'settings_screen.dart';
 
-// The Profile tab is about the farmer: who is signed in, the farm, and what is
-// waiting to sync. Preferences (sync mode, dark mode...) are in Settings, the
+// The Profile tab is about the farmer: signed in, their full profile from the
+// server (the same as the web's My profile, with Edit profile), what is waiting
+// to sync, and Log out. Signed out, a Sign in card instead of the profile. Preferences (sync mode, dark mode...) are in Settings, the
 // gear in the top bar.
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key, this.auth, this.settings, this.sync});
+  const ProfileScreen({
+    super.key,
+    this.api,
+    this.auth,
+    this.settings,
+    this.sync,
+  });
 
   // Leave empty to use the shared ones
+  final ApiClient? api;
   final AuthController? auth;
   final AppSettings? settings;
   final SyncController? sync;
@@ -41,16 +50,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
-    );
-  }
-
-  // The full profile from the server: details, edit name and farm, password
-  Future<void> _openMyProfile() {
-    return Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MyProfileScreen(auth: _auth, settings: _settings),
-      ),
     );
   }
 
@@ -83,11 +82,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.page),
             children: [
-              _buildAccount(),
+              if (_auth.user case final user?)
+                // a new account loads its own profile
+                MyProfileView(
+                  key: ValueKey(user.id),
+                  api: widget.api,
+                  auth: _auth,
+                  settings: _settings,
+                )
+              else
+                _buildSignIn(),
               const SizedBox(height: 12),
-              _buildFarm(),
-              const SizedBox(height: 12),
+              // The My farm card is hidden for now: every farm is in Echague.
+              // Set _showFarmCard to true to bring it back.
+              if (_showFarmCard) ...[_buildFarm(), const SizedBox(height: 12)],
               _buildSync(),
+              if (_auth.isSignedIn) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Log out'),
+                    onPressed: _auth.signOut,
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
             ],
           );
@@ -110,75 +133,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildAccount() {
-    final user = _auth.user;
-    if (user == null) {
-      return SectionCard(
-        title: 'Account',
-        children: [
-          Row(
-            children: [
-              _avatar(
-                child: Icon(
-                  Icons.person_outline,
-                  color: context.colors.textMuted,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Not signed in',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _auth.phoneFarmer == null
-                          ? 'Scans stay on this phone. Sign in to sync them '
-                                'to the PinePal dashboard.'
-                          : 'This phone syncs as farmer ID '
-                                '${_auth.phoneFarmer!.farmerId}. Sign in or '
-                                'create an account to connect it and its scans '
-                                'to you.',
-                      style: TextStyle(
-                        color: context.colors.textMuted,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              onPressed: _openLogin,
-              child: const Text('Sign in'),
-            ),
-          ),
-        ],
-      );
-    }
-
+  // Signed out: scans stay on the phone until the farmer signs in
+  Widget _buildSignIn() {
     return SectionCard(
       title: 'Account',
       children: [
         Row(
           children: [
             _avatar(
-              child: Text(
-                user.initials,
-                style: const TextStyle(fontWeight: FontWeight.w500),
+              child: Icon(
+                Icons.person_outline,
+                color: context.colors.textMuted,
               ),
             ),
             const SizedBox(width: 12),
@@ -186,45 +151,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    user.fullName,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  const Text(
+                    'Not signed in',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '@${user.username}',
+                    _auth.phoneFarmer == null
+                        ? 'Scans stay on this phone. Sign in to sync them '
+                              'to the PinePal dashboard.'
+                        : 'This phone syncs as farmer ID '
+                              '${_auth.phoneFarmer!.farmerId}. Sign in or '
+                              'create an account to connect it and its scans '
+                              'to you.',
                     style: TextStyle(
                       color: context.colors.textMuted,
                       fontSize: 13,
                     ),
                   ),
-                  if (user.farmerId != null)
-                    Text(
-                      'Farmer ID ${user.farmerId}',
-                      style: TextStyle(
-                        color: context.colors.textMuted,
-                        fontSize: 13,
-                      ),
-                    ),
                 ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: context.colors.accentSoft,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-              ),
-              child: Text(
-                user.roleLabel,
-                style: TextStyle(
-                  color: context.colors.accentText,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
               ),
             ),
           ],
@@ -232,25 +177,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 14),
         SizedBox(
           width: double.infinity,
-          child: ElevatedButton.icon(
+          child: ElevatedButton(
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
-            icon: const Icon(Icons.badge_outlined),
-            label: const Text('View my profile'),
-            onPressed: _openMyProfile,
-          ),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            icon: const Icon(Icons.logout),
-            label: const Text('Log out'),
-            onPressed: _auth.signOut,
+            onPressed: _openLogin,
+            child: const Text('Sign in'),
           ),
         ),
       ],
@@ -269,6 +201,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
+  static const _showFarmCard = false;
 
   Widget _buildFarm() {
     final hasFarm = _settings.farmName.isNotEmpty;

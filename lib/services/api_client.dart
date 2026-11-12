@@ -147,19 +147,33 @@ class ApiClient {
     );
   }
 
-  // Only the name, farm name and farm size are saved; the server ignores the
-  // rest, so the important details can't be changed from the app.
+  // Edit profile: only the details passed are sent, and the server leaves the
+  // rest as they are. A new username, email or password needs the current
+  // password too (the server checks it). clearFarmSize empties the farm size.
+  // Role, farmer ID, municipality and farm location are ignored by the server.
   Future<UserProfile> updateProfile({
     required String token,
-    required String fullName,
+    String? fullName,
+    String? username,
+    String? email,
+    String? newPassword,
     String? farmName,
     double? farmSizeHa,
+    bool clearFarmSize = false,
+    String? currentPassword,
   }) async {
     return UserProfile.fromJson(
       await _sendJson('PUT', '/api/profile', {
-        'full_name': fullName,
+        'full_name': ?fullName,
+        'username': ?username,
+        'email': ?email,
+        'new_password': ?newPassword,
         'farm_name': ?farmName,
-        'farm_size_ha': ?farmSizeHa,
+        if (clearFarmSize)
+          'farm_size_ha': null
+        else
+          'farm_size_ha': ?farmSizeHa,
+        'current_password': ?currentPassword,
       }, token),
     );
   }

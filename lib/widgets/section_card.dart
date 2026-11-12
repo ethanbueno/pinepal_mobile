@@ -8,12 +8,14 @@ import '../theme/app_colors.dart';
 class SectionCard extends StatelessWidget {
   final String title;
   final Widget? action;
+  final Color? titleColor; // the title's color, the text color when null
   final List<Widget> children;
 
   const SectionCard({
     super.key,
     required this.title,
     this.action,
+    this.titleColor,
     required this.children,
   });
 
@@ -39,9 +41,10 @@ class SectionCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
+                      color: titleColor,
                     ),
                   ),
                 ),

@@ -1,9 +1,14 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:pinepal_mobile/screens/profile_screen.dart';
+import 'package:pinepal_mobile/services/api_client.dart';
 import 'package:pinepal_mobile/services/app_settings.dart';
 import 'package:pinepal_mobile/services/auth_controller.dart';
 import 'package:pinepal_mobile/services/sync_controller.dart';
@@ -15,6 +20,25 @@ Future<void> showProfile(
   required AppSettings settings,
 }) async {
   final sync = SyncController(auth: auth, settings: settings);
+  // The server's answer to GET /api/profile
+  final api = ApiClient(
+    baseUrl: () => 'http://server.test:5000',
+    client: MockClient(
+      (request) async => http.Response(
+        jsonEncode({
+          'account': {
+            'full_name': 'Juan Dela Cruz',
+            'username': 'juan',
+            'email': 'juan@example.com',
+            'role': 'farmer',
+            'municipality': 'Echague',
+          },
+          'farm': null,
+        }),
+        200,
+      ),
+    ),
+  );
 
   // A tall phone, so the whole list is built and nothing is scrolled out of view
   tester.view.physicalSize = const Size(800, 3200);
@@ -27,7 +51,12 @@ Future<void> showProfile(
     await tester.pumpWidget(
       MaterialApp(
         theme: buildTheme(Brightness.light),
-        home: ProfileScreen(auth: auth, settings: settings, sync: sync),
+        home: ProfileScreen(
+          api: api,
+          auth: auth,
+          settings: settings,
+          sync: sync,
+        ),
       ),
     );
     await Future<void>.delayed(const Duration(milliseconds: 300));
@@ -114,7 +143,9 @@ void main() {
     expect(auth.phoneFarmer, isNull);
 
     await showProfile(tester, auth: auth, settings: AppSettings());
-    expect(find.text('Farmer ID F069'), findsOneWidget);
+    // the account's profile, and nothing about the phone's old farmer ID
+    expect(find.text('Juan Dela Cruz'), findsOneWidget);
+    expect(find.textContaining('F070'), findsNothing);
   });
 
   testWidgets('the tab is about the farmer, preferences are in Settings', (
@@ -127,7 +158,7 @@ void main() {
     );
 
     expect(find.text('Account'), findsOneWidget);
-    expect(find.text('My farm'), findsOneWidget);
+    expect(find.text('My farm'), findsNothing); // hidden for now
     expect(find.text('Sync'), findsOneWidget);
     expect(find.byTooltip('Settings'), findsOneWidget);
 
@@ -138,16 +169,22 @@ void main() {
     expect(find.text('Server address'), findsNothing);
   });
 
-  testWidgets('signed in: shows the account and its web role', (tester) async {
-    await showProfile(tester, auth: signedInAuth(), settings: AppSettings());
+  testWidgets(
+    'signed in: the full profile is on the tab, then Sync and Log out',
+    (tester) async {
+      await showProfile(tester, auth: signedInAuth(), settings: AppSettings());
 
-    expect(find.text('Juan Dela Cruz'), findsOneWidget);
-    expect(find.text('@juan'), findsOneWidget);
-    expect(find.text('Farmer'), findsOneWidget);
-    expect(find.text('JD'), findsOneWidget);
-    expect(find.text('Log out'), findsOneWidget);
-    expect(find.text('Not signed in'), findsNothing);
-  });
+      expect(find.text('Juan Dela Cruz'), findsOneWidget);
+      expect(find.text('@juan'), findsWidgets); // chip and Personal info
+      expect(find.text('JD'), findsOneWidget);
+      expect(find.text('Personal info'), findsOneWidget);
+      expect(find.text('Edit profile'), findsOneWidget);
+      expect(find.text('View my profile'), findsNothing);
+      expect(find.text('Sync'), findsOneWidget);
+      expect(find.text('Log out'), findsOneWidget);
+      expect(find.text('Not signed in'), findsNothing);
+    },
+  );
 
   testWidgets('the sync line says how syncing is set up', (tester) async {
     final settings = AppSettings();
@@ -157,7 +194,8 @@ void main() {
     expect(find.textContaining('Automatic, on Wi-Fi only'), findsOneWidget);
   });
 
-  testWidgets('the farm can be added from a sheet', (tester) async {
+  // The My farm card is hidden for now (profile_screen.dart _showFarmCard)
+  testWidgets('the farm can be added from a sheet', skip: true, (tester) async {
     final settings = AppSettings();
     await showProfile(
       tester,

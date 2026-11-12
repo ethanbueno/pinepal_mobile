@@ -103,7 +103,7 @@ void main() {
     expect(profile.farm!.totalScans, 14);
   });
 
-  test('saving the profile sends only the fields that can change', () async {
+  test('saving the name sends only the name', () async {
     late http.Request seen;
     final api = clientFor((request) async {
       seen = request;
@@ -130,6 +130,61 @@ void main() {
     expect(jsonDecode(seen.body), {'full_name': 'Juan D. Cruz'});
     expect(profile.fullName, 'Juan D. Cruz');
     expect(profile.farm, isNull);
+  });
+
+  test(
+    'changing the username sends only it and the current password',
+    () async {
+      late http.Request seen;
+      final api = clientFor((request) async {
+        seen = request;
+        return http.Response(
+          jsonEncode({
+            'account': {
+              'full_name': 'Juan',
+              'username': 'juan2',
+              'role': 'officer',
+            },
+            'farm': null,
+          }),
+          200,
+        );
+      });
+
+      final profile = await api.updateProfile(
+        token: 'tok',
+        username: 'juan2',
+        currentPassword: 'secret',
+      );
+
+      expect(jsonDecode(seen.body), {
+        'username': 'juan2',
+        'current_password': 'secret',
+      });
+      expect(profile.username, 'juan2');
+    },
+  );
+
+  test('clearing the farm size sends it as null', () async {
+    late http.Request seen;
+    final api = clientFor((request) async {
+      seen = request;
+      return http.Response(
+        jsonEncode({
+          'account': {
+            'full_name': 'Juan',
+            'username': 'juan',
+            'role': 'farmer',
+          },
+          'farm': null,
+        }),
+        200,
+      );
+    });
+
+    await api.updateProfile(token: 'tok', clearFarmSize: true);
+
+    expect(jsonDecode(seen.body), {'farm_size_ha': null});
   });
 
   test('a wrong current password shows the server message', () async {

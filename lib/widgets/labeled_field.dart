@@ -9,6 +9,7 @@ class LabeledField extends StatelessWidget {
   final String? hint;
   final bool obscure;
   final bool enabled;
+  final bool autofocus;
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
   final FocusNode? focusNode;
@@ -23,6 +24,7 @@ class LabeledField extends StatelessWidget {
     this.hint,
     this.obscure = false,
     this.enabled = true,
+    this.autofocus = false,
     this.keyboardType,
     this.textInputAction,
     this.focusNode,
@@ -50,6 +52,7 @@ class LabeledField extends StatelessWidget {
           focusNode: focusNode,
           obscureText: obscure,
           enabled: enabled,
+          autofocus: autofocus,
           keyboardType: keyboardType,
           textInputAction: textInputAction,
           autocorrect: false,

@@ -191,9 +191,9 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  // After the profile screen saves a new name, so the app shows it right away
-  // and keeps it after a restart. The token stays the same.
-  Future<void> updateFullName(String fullName) async {
+  // After My profile saves a new name or username, so the app shows it right
+  // away and keeps it after a restart. The token stays the same.
+  Future<void> updateAccount({String? fullName, String? username}) async {
     final session = _session;
     if (session == null) return;
     final old = session.user;
@@ -202,8 +202,8 @@ class AuthController extends ChangeNotifier {
         token: session.token,
         user: AuthUser(
           id: old.id,
-          fullName: fullName,
-          username: old.username,
+          fullName: fullName ?? old.fullName,
+          username: username ?? old.username,
           role: old.role,
           farmerId: old.farmerId,
         ),

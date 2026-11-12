@@ -10,13 +10,40 @@ import '../widgets/labeled_field.dart';
 import '../widgets/section_card.dart';
 
 const _minPassword = 6; // same as MIN_PASSWORD in the web backend
+const _echagueOnly = 'Echague only for now';
 
-// The signed-in user's own details, from the server. Only the name, and for
-// farmers the farm name and size, can be changed here, plus the password.
-// The important details (username, email, role, farmer ID, municipality...)
-// are shown with a lock: only an admin or officer can change them.
-class MyProfileScreen extends StatefulWidget {
-  const MyProfileScreen({super.key, this.api, this.auth, this.settings});
+// What Edit profile can change, one at a time, same as the web (EDITABLE in
+// src/pages/Profile.jsx). secure = a sign-in detail, which needs the current
+// password first (the server checks it too). farmOnly = farmers with a farm.
+class _Editable {
+  final String key;
+  final String label;
+  final bool secure;
+  final bool farmOnly;
+  const _Editable(
+    this.key,
+    this.label, {
+    this.secure = false,
+    this.farmOnly = false,
+  });
+}
+
+const _editable = [
+  _Editable('full_name', 'Full name'),
+  _Editable('username', 'Username', secure: true),
+  _Editable('email', 'Email', secure: true),
+  _Editable('new_password', 'Password', secure: true),
+  _Editable('farm_name', 'Farm name', farmOnly: true),
+  _Editable('farm_size_ha', 'Farm size', farmOnly: true),
+];
+
+// The signed-in user's own details, from the server, laid out like the web's
+// My profile: a cover with the name, Overview and Farm for farmers, then
+// Personal info. Edit profile lists what can be changed; each detail is
+// changed on its own and only that detail is sent. It sits at the top of the
+// Profile tab, as a column of cards.
+class MyProfileView extends StatefulWidget {
+  const MyProfileView({super.key, this.api, this.auth, this.settings});
 
   // Leave empty to use the shared ones
   final ApiClient? api;
@@ -24,10 +51,10 @@ class MyProfileScreen extends StatefulWidget {
   final AppSettings? settings;
 
   @override
-  State<MyProfileScreen> createState() => _MyProfileScreenState();
+  State<MyProfileView> createState() => _MyProfileViewState();
 }
 
-class _MyProfileScreenState extends State<MyProfileScreen> {
+class _MyProfileViewState extends State<MyProfileView> {
   late final _api = widget.api ?? ApiClient();
   late final _auth = widget.auth ?? AuthController.instance;
   late final _settings = widget.settings ?? AppSettings.instance;
@@ -35,15 +62,13 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
   UserProfile? _profile;
   String? _loadError;
 
-  final _fullName = TextEditingController();
-  final _farmName = TextEditingController();
-  final _farmSize = TextEditingController();
-
-  final _current = TextEditingController();
-  final _next = TextEditingController();
-  final _confirm = TextEditingController();
-  bool _changing = false;
-  String? _passwordError;
+  // The Edit profile sheet: the one detail being changed, or null
+  String? _field;
+  final _value = TextEditingController();
+  final _confirm = TextEditingController(); // the new password again
+  final _current = TextEditingController(); // for sign-in details
+  String? _formError;
+  bool _saving = false;
 
   @override
   void initState() {
@@ -53,33 +78,17 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
 
   @override
   void dispose() {
-    for (final c in [
-      _fullName,
-      _farmName,
-      _farmSize,
-      _current,
-      _next,
-      _confirm,
-    ]) {
-      c.dispose();
-    }
+    _value.dispose();
+    _confirm.dispose();
+    _current.dispose();
     super.dispose();
-  }
-
-  void _fill(UserProfile p) {
-    _fullName.text = p.fullName;
-    _farmName.text = p.farm?.farmName ?? '';
-    final size = p.farm?.sizeHa;
-    _farmSize.text = size == null ? '' : size.toString();
   }
 
   Future<void> _load() async {
     setState(() => _loadError = null);
     try {
       final p = await _api.getProfile(token: _auth.token!);
-      if (!mounted) return;
-      _fill(p);
-      setState(() => _profile = p);
+      if (mounted) setState(() => _profile = p);
     } catch (e) {
       if (mounted) setState(() => _loadError = '$e');
     }
@@ -89,374 +98,691 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
-  // Saves the Edit profile sheet. Returns true when it worked, so the sheet closes.
-  Future<bool> _save() async {
-    final name = _fullName.text.trim();
-    if (name.isEmpty) {
-      _say('Enter your full name.');
-      return false;
+  // The saved value of a detail, as the form starts with it ('' for the password)
+  String _savedValue(String key) {
+    final p = _profile!;
+    return switch (key) {
+      'full_name' => p.fullName,
+      'username' => p.username,
+      'email' => p.email ?? '',
+      'farm_name' => p.farm?.farmName ?? '',
+      'farm_size_ha' => p.farm?.sizeHa?.toString() ?? '',
+      _ => '',
+    };
+  }
+
+  // The saved value as the Edit profile list shows it
+  String _shownValue(String key) {
+    final p = _profile!;
+    return switch (key) {
+      'new_password' => '••••••••',
+      'username' => '@${p.username}',
+      'farm_size_ha' => p.farm?.sizeHa == null ? '' : '${p.farm!.sizeHa} ha',
+      _ => _savedValue(key),
+    };
+  }
+
+  // Opens one detail for changing, starting on what is saved
+  void _startChange(String key) {
+    _field = key;
+    _value.text = _savedValue(key);
+    _confirm.clear();
+    _current.clear();
+    _formError = null;
+  }
+
+  // Checks and saves the open detail. Returns an error to show, or null when
+  // it was saved.
+  Future<String?> _saveField() async {
+    final key = _field!;
+    final item = _editable.firstWhere((f) => f.key == key);
+    final label = item.label.toLowerCase();
+    final text = key == 'new_password' ? _value.text : _value.text.trim();
+
+    if (key != 'new_password' && text == _savedValue(key)) {
+      return "That's the same as what is saved.";
     }
-    final isFarmer = _profile!.role == 'farmer';
+    if ((key == 'full_name' || key == 'username' || key == 'email') &&
+        text.isEmpty) {
+      return 'Enter your $label.';
+    }
     double? size;
-    if (isFarmer && _farmSize.text.trim().isNotEmpty) {
-      size = double.tryParse(_farmSize.text.trim());
-      if (size == null || size < 0) {
-        _say('Farm size must be a number.');
-        return false;
+    if (key == 'farm_size_ha' && text.isNotEmpty) {
+      size = double.tryParse(text);
+      if (size == null || size < 0) return 'Farm size must be a number.';
+    }
+    if (key == 'new_password') {
+      if (text.length < _minPassword) {
+        return 'The new password must be at least $_minPassword characters.';
       }
+      if (text != _confirm.text) return 'The new passwords do not match.';
+    }
+    if (item.secure && _current.text.isEmpty) {
+      return 'Enter your current password to change your $label.';
     }
 
     try {
+      // only this one detail is sent; the server leaves the rest as they are
       final p = await _api.updateProfile(
         token: _auth.token!,
-        fullName: name,
-        farmName: isFarmer ? _farmName.text.trim() : null,
+        fullName: key == 'full_name' ? text : null,
+        username: key == 'username' ? text : null,
+        email: key == 'email' ? text : null,
+        newPassword: key == 'new_password' ? text : null,
+        farmName: key == 'farm_name' ? text : null,
         farmSizeHa: size,
+        clearFarmSize: key == 'farm_size_ha' && text.isEmpty,
+        currentPassword: item.secure ? _current.text : null,
       );
-      await _auth.updateFullName(p.fullName);
+      await _auth.updateAccount(fullName: p.fullName, username: p.username);
       // new scans carry the farm name too, so it stays the same as the server's
-      if (isFarmer) await _settings.setFarmName(p.farm?.farmName ?? '');
-      if (!mounted) return true;
-      _fill(p);
-      setState(() => _profile = p);
-      _say('Profile saved.');
-      return true;
+      if (p.role == 'farmer') {
+        await _settings.setFarmName(p.farm?.farmName ?? '');
+      }
+      if (mounted) {
+        setState(() => _profile = p);
+        _say('${item.label} changed.');
+      }
+      return null;
     } catch (e) {
-      if (mounted) _say('$e');
-      return false;
+      return '$e';
     }
   }
 
-  // The floating Edit profile button: a sheet with the few details that can
-  // change. It starts on what is saved every time it opens.
+  // Edit profile: a sheet listing what can be changed, one detail at a time
   Future<void> _openEdit() {
-    _fill(_profile!);
-    final isFarmer = _profile!.role == 'farmer';
-    var saving = false;
+    _field = null;
+    _formError = null;
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => StatefulBuilder(
-        builder: (sheetContext, setSheet) => Padding(
-          // moves up with the keyboard
-          padding: EdgeInsets.fromLTRB(
-            20,
-            4,
-            20,
-            20 + MediaQuery.of(sheetContext).viewInsets.bottom,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Edit profile',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  isFarmer
-                      ? 'You can change your name, farm name and farm size. '
-                            'Ask your agricultural officer to change anything else.'
-                      : 'You can change your name. Ask an admin to change '
-                            'anything else.',
-                  style: TextStyle(
-                    color: sheetContext.colors.textMuted,
-                    fontSize: 13,
+        builder: (sheetContext, setSheet) {
+          final p = _profile!;
+          final hasFarm = p.role == 'farmer' && p.farm != null;
+          final items = _editable.where((f) => !f.farmOnly || hasFarm).toList();
+          final colors = sheetContext.colors;
+          return Padding(
+            // moves up with the keyboard
+            padding: EdgeInsets.fromLTRB(
+              20,
+              4,
+              20,
+              20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Edit profile',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
-                ),
-                const SizedBox(height: 16),
-                LabeledField(
-                  label: 'Full name',
-                  controller: _fullName,
-                  enabled: !saving,
-                  textInputAction: isFarmer
-                      ? TextInputAction.next
-                      : TextInputAction.done,
-                ),
-                if (isFarmer) ...[
-                  const SizedBox(height: 12),
-                  LabeledField(
-                    label: 'Farm name',
-                    hint: 'For example: Bueno Farm',
-                    controller: _farmName,
-                    enabled: !saving,
-                    textInputAction: TextInputAction.next,
+                  const SizedBox(height: 4),
+                  Text(
+                    'Choose what to change. Only that detail is saved; '
+                    'everything else stays the same.',
+                    style: TextStyle(color: colors.textMuted, fontSize: 13),
                   ),
-                  const SizedBox(height: 12),
-                  LabeledField(
-                    label: 'Farm size (hectares)',
-                    controller: _farmSize,
-                    enabled: !saving,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                  const SizedBox(height: 14),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: colors.line),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                    ),
+                    child: Column(
+                      children: [
+                        for (final (i, item) in items.indexed) ...[
+                          if (i > 0) Divider(height: 1, color: colors.line),
+                          _editRow(sheetContext, item, setSheet),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: OutlinedButton(
+                      onPressed: _saving
+                          ? null
+                          : () => Navigator.pop(sheetContext),
+                      child: const Text('Done'),
                     ),
                   ),
                 ],
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          );
+        },
+      ),
+    ).whenComplete(() => _field = null);
+  }
+
+  // One detail of the Edit profile list, with its form when it is open
+  Widget _editRow(BuildContext context, _Editable item, StateSetter setSheet) {
+    final colors = context.colors;
+    final open = _field == item.key;
+    final shown = _shownValue(item.key);
+    final label = item.label.toLowerCase();
+
+    Future<void> save() async {
+      setSheet(() {
+        _saving = true;
+        _formError = null;
+      });
+      final error = await _saveField();
+      if (!context.mounted) return;
+      setSheet(() {
+        _saving = false;
+        _formError = error;
+        if (error == null) _field = null;
+      });
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.label,
+                      style: TextStyle(fontSize: 12, color: colors.textMuted),
                     ),
-                    onPressed: saving
-                        ? null
-                        : () async {
-                            setSheet(() => saving = true);
-                            final ok = await _save();
-                            if (ok && sheetContext.mounted) {
-                              Navigator.pop(sheetContext);
-                            } else if (sheetContext.mounted) {
-                              setSheet(() => saving = false);
-                            }
-                          },
-                    child: Text(saving ? 'Saving...' : 'Save changes'),
+                    Text(
+                      shown.isEmpty ? '–' : shown,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+              if (!open)
+                OutlinedButton(
+                  onPressed: _field != null
+                      ? null
+                      : () => setSheet(() => _startChange(item.key)),
+                  child: const Text('Change'),
+                ),
+            ],
+          ),
+          if (open) ...[
+            const SizedBox(height: 12),
+            if (item.key == 'new_password') ...[
+              _PasswordField(
+                label: 'New password',
+                hint: 'At least $_minPassword characters',
+                controller: _value,
+                enabled: !_saving,
+                autofocus: true,
+              ),
+              const SizedBox(height: 12),
+              _PasswordField(
+                label: 'Confirm new password',
+                controller: _confirm,
+                enabled: !_saving,
+              ),
+            ] else
+              LabeledField(
+                label: 'New $label',
+                controller: _value,
+                enabled: !_saving,
+                autofocus: true,
+                keyboardType: switch (item.key) {
+                  'email' => TextInputType.emailAddress,
+                  'farm_size_ha' => const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
+                  _ => null,
+                },
+                hint: item.key == 'farm_size_ha'
+                    ? 'Hectares, leave empty to clear'
+                    : null,
+              ),
+            if (item.secure) ...[
+              const SizedBox(height: 12),
+              _PasswordField(
+                label: 'Current password',
+                hint: 'Needed to change your sign-in details',
+                controller: _current,
+                enabled: !_saving,
+                onSubmitted: (_) => save(),
+              ),
+            ],
+            if (_formError != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _formError!,
+                style: TextStyle(color: colors.danger, fontSize: 13),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton(
+                  onPressed: _saving
+                      ? null
+                      : () => setSheet(() {
+                          _field = null;
+                          _formError = null;
+                        }),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _saving ? null : save,
+                  child: Text(_saving ? 'Saving...' : 'Save $label'),
                 ),
               ],
             ),
-          ),
-        ),
+          ],
+        ],
       ),
     );
-  }
-
-  Future<void> _changePassword() async {
-    setState(() => _passwordError = null);
-    if (_current.text.isEmpty) {
-      setState(() => _passwordError = 'Enter your current password.');
-      return;
-    }
-    if (_next.text.length < _minPassword) {
-      setState(
-        () => _passwordError =
-            'The new password must be at least $_minPassword characters.',
-      );
-      return;
-    }
-    if (_next.text != _confirm.text) {
-      setState(() => _passwordError = 'The new passwords do not match.');
-      return;
-    }
-
-    setState(() => _changing = true);
-    try {
-      await _api.changePassword(
-        token: _auth.token!,
-        currentPassword: _current.text,
-        newPassword: _next.text,
-      );
-      _current.clear();
-      _next.clear();
-      _confirm.clear();
-      if (mounted) _say('Password changed.');
-    } catch (e) {
-      if (mounted) setState(() => _passwordError = '$e');
-    } finally {
-      if (mounted) setState(() => _changing = false);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('My profile')),
-      body: _buildBody(),
-      // floating at the bottom of the screen, once the profile has loaded
-      floatingActionButton: _profile == null
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _openEdit,
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Edit profile'),
-            ),
+    final p = _profile;
+    if (p == null && _loadError != null) return _buildOffline();
+    if (p == null) {
+      return Container(
+        height: 160,
+        alignment: Alignment.center,
+        decoration: _cardDecoration(context),
+        child: const CircularProgressIndicator(),
+      );
+    }
+    return _buildProfile(p);
+  }
+
+  BoxDecoration _cardDecoration(BuildContext context) => BoxDecoration(
+    color: context.colors.surface,
+    borderRadius: BorderRadius.circular(AppRadius.card),
+    border: Border.all(color: context.colors.line),
+  );
+
+  // The server could not be reached (the app works offline): what the phone
+  // knows about the account, and a way to try again
+  Widget _buildOffline() {
+    final colors = context.colors;
+    final user = _auth.user;
+    return SectionCard(
+      title: 'Account',
+      children: [
+        if (user != null)
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: colors.accent,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  user.initials,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: colors.onAccent,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user.fullName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      '@${user.username} · ${user.roleLabel}',
+                      style: TextStyle(color: colors.textMuted, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        const SizedBox(height: 12),
+        Text(
+          'Could not load your full profile. Check your connection.\n'
+          '$_loadError',
+          style: TextStyle(color: colors.textMuted, fontSize: 13),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton(onPressed: _load, child: const Text('Try again')),
+      ],
     );
   }
 
-  Widget _buildBody() {
-    if (_loadError != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.page),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Could not load your profile.\n$_loadError',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: context.colors.textMuted),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton(onPressed: _load, child: const Text('Try again')),
-            ],
-          ),
-        ),
-      );
-    }
-    final p = _profile;
-    if (p == null) return const Center(child: CircularProgressIndicator());
-
+  Widget _buildProfile(UserProfile p) {
+    final colors = context.colors;
     final isFarmer = p.role == 'farmer';
     final farm = p.farm;
-    return ListView(
-      // the bottom padding keeps the last card clear of the Edit profile button
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.page,
-        AppSpacing.page,
-        AppSpacing.page,
-        96,
-      ),
+    final role = _roleLabel(p.role);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Details with a lock can only be changed by an admin or officer.',
-          style: TextStyle(color: context.colors.textMuted, fontSize: 13),
-        ),
-        const SizedBox(height: 12),
-        SectionCard(
-          title: 'Personal details',
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: context.colors.surface2,
-                    borderRadius: BorderRadius.circular(AppRadius.control),
+        _buildCoverCard(p),
+        if (isFarmer && farm != null) ...[
+          const SizedBox(height: 12),
+          SectionCard(
+            title: 'Overview',
+            titleColor: colors.accentText,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _StatTile(
+                      value: '${farm.totalScans}',
+                      label: 'Scans',
+                    ),
                   ),
-                  child: Text(
-                    _initials(p.fullName),
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _StatTile(
+                      value: farm.sizeHa == null ? '–' : '${farm.sizeHa} ha',
+                      label: 'Farm size',
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        p.fullName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        _roleLabel(p.role),
-                        style: TextStyle(
-                          color: context.colors.textMuted,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _StatTile(
+                      value: farm.isActive ? 'Active' : 'Off',
+                      label: 'Farm status',
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            _detail('Full name', p.fullName),
-            _locked('Username', '@${p.username}'),
-            _locked('Email', p.email),
-            _locked('Role', _roleLabel(p.role)),
-            _greyedMunicipality(p.municipality),
-            _locked(
-              'Member since',
-              p.createdAt == null ? null : formatDate(p.createdAt!),
-            ),
-          ],
-        ),
-        if (isFarmer) ...[
+                ],
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           SectionCard(
             title: 'Farm',
-            children: farm == null
-                ? [
-                    Text(
-                      'No farm is linked to your account yet.',
-                      style: TextStyle(color: context.colors.textMuted),
-                    ),
-                  ]
-                : [
-                    _detail('Farm name', farm.farmName),
-                    _detail(
-                      'Farm size',
-                      farm.sizeHa == null ? null : '${farm.sizeHa} ha',
-                    ),
-                    _locked('Farmer ID', farm.farmerId),
-                    _greyedMunicipality(farm.municipality),
-                    _locked(
-                      'Farm location',
-                      farm.latitude == null
-                          ? 'Not set yet'
-                          : '${farm.latitude!.toStringAsFixed(5)}, '
-                                '${farm.longitude!.toStringAsFixed(5)}',
-                    ),
-                    _locked('Status', farm.isActive ? 'Active' : 'Deactivated'),
-                    _locked(
-                      'Registered',
-                      farm.registeredAt == null
-                          ? null
-                          : formatDate(farm.registeredAt!),
-                    ),
-                    _locked('Scans on the server', '${farm.totalScans}'),
-                  ],
+            titleColor: colors.accentText,
+            children: _spaced([
+              _InfoItem(
+                icon: Icons.spa_outlined,
+                value: farm.farmName.isEmpty
+                    ? 'No farm name yet'
+                    : farm.farmName,
+                label: 'Farm name',
+              ),
+              _InfoItem(
+                icon: Icons.tag,
+                value: farm.farmerId,
+                label: 'Farmer ID',
+              ),
+              _InfoItem(
+                icon: Icons.place_outlined,
+                value: farm.latitude == null
+                    ? 'Not set yet'
+                    : '${farm.latitude!.toStringAsFixed(5)}, '
+                          '${farm.longitude!.toStringAsFixed(5)}',
+                label: 'Farm location',
+              ),
+              _InfoItem(
+                icon: Icons.calendar_today_outlined,
+                value: farm.registeredAt == null
+                    ? null
+                    : formatDate(farm.registeredAt!),
+                label: 'Registered',
+              ),
+            ]),
+          ),
+        ],
+        if (isFarmer && farm == null) ...[
+          const SizedBox(height: 12),
+          SectionCard(
+            title: 'Farm',
+            titleColor: colors.accentText,
+            children: [
+              Text(
+                'No farm is linked to your account yet.',
+                style: TextStyle(color: colors.textMuted),
+              ),
+            ],
           ),
         ],
         const SizedBox(height: 12),
         SectionCard(
-          title: 'Change password',
+          title: 'Personal info',
+          titleColor: colors.accentText,
           children: [
-            LabeledField(
-              label: 'Current password',
-              controller: _current,
-              obscure: true,
-              enabled: !_changing,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            LabeledField(
-              label: 'New password',
-              hint: 'At least $_minPassword characters',
-              controller: _next,
-              obscure: true,
-              enabled: !_changing,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-            LabeledField(
-              label: 'Confirm new password',
-              controller: _confirm,
-              obscure: true,
-              enabled: !_changing,
-              onSubmitted: (_) => _changePassword(),
-            ),
-            if (_passwordError != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                _passwordError!,
-                style: TextStyle(color: context.colors.danger, fontSize: 13),
+            ..._spaced([
+              _InfoItem(
+                icon: Icons.mail_outline,
+                value: p.email,
+                label: 'Email',
               ),
-            ],
+              _InfoItem(
+                icon: Icons.person_outline,
+                value: '@${p.username}',
+                label: 'Username',
+              ),
+              _InfoItem(
+                icon: Icons.shield_outlined,
+                value: role,
+                label: 'Role',
+              ),
+              _InfoItem(
+                icon: Icons.place_outlined,
+                value: p.municipality,
+                label: 'Municipality',
+                muted: true,
+                note: _echagueOnly,
+              ),
+              _InfoItem(
+                icon: Icons.calendar_today_outlined,
+                value: p.createdAt == null ? null : formatDate(p.createdAt!),
+                label: 'Joined',
+              ),
+            ]),
             const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                onPressed: _changing ? null : _changePassword,
-                child: Text(_changing ? 'Changing...' : 'Change password'),
-              ),
+            Divider(height: 1, color: colors.line),
+            const SizedBox(height: 12),
+            Text(
+              'Change your email, username or password with Edit profile. '
+              'Your role, municipality and join date can only be changed by '
+              'an admin.',
+              style: TextStyle(color: colors.textMuted, fontSize: 12),
             ),
           ],
         ),
-        const SizedBox(height: 8),
       ],
     );
   }
+
+  // The profile card: cover, avatar, name, and Edit profile
+  Widget _buildCoverCard(UserProfile p) {
+    final colors = context.colors;
+    final isFarmer = p.role == 'farmer';
+    final farm = p.farm;
+    final role = _roleLabel(p.role);
+    final active = !isFarmer || farm == null || farm.isActive;
+    const coverHeight = 120.0;
+    const avatar = 96.0;
+
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: _cardDecoration(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              const SizedBox(
+                height: coverHeight,
+                width: double.infinity,
+                child: _Cover(),
+              ),
+              Positioned(
+                left: 16,
+                top: coverHeight - avatar / 2,
+                child: Container(
+                  width: avatar,
+                  height: avatar,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: colors.accent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: colors.surface, width: 4),
+                  ),
+                  child: Text(
+                    _initials(p.fullName),
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w600,
+                      color: colors.onAccent,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, avatar / 2 + 10, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      p.fullName,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.accentSoft,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: Text(
+                        role,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: colors.accentText,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 4,
+                  children: [
+                    _iconText(
+                      isFarmer ? Icons.spa_outlined : Icons.shield_outlined,
+                      isFarmer && (farm?.farmName.isNotEmpty ?? false)
+                          ? farm!.farmName
+                          : role,
+                    ),
+                    Opacity(
+                      opacity: 0.6,
+                      child: Tooltip(
+                        message: _echagueOnly,
+                        child: _iconText(
+                          Icons.place_outlined,
+                          '${p.municipality.isEmpty ? 'No municipality yet' : p.municipality}, Isabela',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _Chip('@${p.username}'),
+                    if (farm != null) _Chip('Farmer ID ${farm.farmerId}'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: colors.line),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.verified_outlined,
+                  size: 16,
+                  color: active ? colors.success : colors.danger,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    active ? 'Active account' : 'Deactivated account',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: active ? colors.success : colors.danger,
+                    ),
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _openEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Edit profile'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _iconText(IconData icon, String text) {
+    final muted = context.colors.textMuted;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: muted),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(text, style: TextStyle(fontSize: 14, color: muted)),
+        ),
+      ],
+    );
+  }
+
+  // Puts the same gap between a card's lines
+  List<Widget> _spaced(List<Widget> items) => [
+    for (final (i, item) in items.indexed) ...[
+      if (i > 0) const SizedBox(height: 14),
+      item,
+    ],
+  ];
 
   // Same labels as AuthUser.roleLabel and the web (src/utils/roles.js)
   String _roleLabel(String role) => switch (role) {
@@ -477,84 +803,245 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
         .toUpperCase();
     return letters.isEmpty ? '?' : letters;
   }
+}
 
-  // A detail that can be seen but not changed here
-  Widget _locked(String label, String? value) =>
-      _detail(label, value, locked: true);
+// The cover: pineapple-leaf greens, drawn with gradients like the web's COVER,
+// so there is no image to load. Same colors in light and dark.
+class _Cover extends StatelessWidget {
+  const _Cover();
 
-  // The municipality: greyed out like a disabled field, since PinePal only
-  // covers Echague for now
-  Widget _greyedMunicipality(String? value) => Opacity(
-    opacity: 0.5,
-    child: _detail(
-      'Municipality',
-      value,
-      locked: true,
-      note: 'Echague only for now',
-      muted: true,
-    ),
-  );
-
-  // One detail. A locked one gets a lock; the others change with Edit profile.
-  // muted shows the value in grey instead of bold; note is a line under it.
-  Widget _detail(
-    String label,
-    String? value, {
-    bool locked = false,
-    bool muted = false,
-    String? note,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1F4D2B), Color(0xFF2F6B35), Color(0xFF173B22)],
+          stops: [0, 0.45, 1],
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
         children: [
-          // same width with or without the lock, so the labels line up
-          SizedBox(
-            width: 16,
-            child: locked
-                ? Icon(
-                    Icons.lock_outline,
-                    size: 16,
-                    color: context.colors.textMuted,
-                  )
-                : null,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(color: context.colors.textMuted, fontSize: 14),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(-0.7, -1),
+                radius: 1.1,
+                colors: [Color(0xFF4D8A3A), Color(0x004D8A3A)],
+                stops: [0, 0.55],
+              ),
             ),
           ),
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0.7, -0.8),
+                radius: 0.9,
+                colors: [Color(0xFF2F7D4F), Color(0x002F7D4F)],
+                stops: [0, 0.6],
+              ),
+            ),
+          ),
+          CustomPaint(painter: _LeafStripes()),
+        ],
+      ),
+    );
+  }
+}
+
+// Thin diagonal lines over the cover, like leaf veins
+class _LeafStripes extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    void lines(double step, double slope, Color color) {
+      final paint = Paint()
+        ..color = color
+        ..strokeWidth = 2;
+      final run = size.height * slope;
+      for (var x = -run.abs(); x < size.width + run.abs(); x += step) {
+        canvas.drawLine(Offset(x, size.height), Offset(x + run, 0), paint);
+      }
+    }
+
+    lines(28, 0.47, const Color(0x12FFFFFF)); // white at 7%
+    lines(36, -0.47, const Color(0x14000000)); // black at 8%
+  }
+
+  @override
+  bool shouldRepaint(_LeafStripes oldDelegate) => false;
+}
+
+// A number tile of the Overview card
+class _StatTile extends StatelessWidget {
+  const _StatTile({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+      decoration: BoxDecoration(
+        color: colors.accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: colors.accentText,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// One line of Personal info or Farm: an icon in a soft square, the value, and
+// what it is under it. muted = greyed out, with a note (the municipality,
+// while PinePal only covers Echague).
+class _InfoItem extends StatelessWidget {
+  const _InfoItem({
+    required this.icon,
+    required this.value,
+    required this.label,
+    this.muted = false,
+    this.note,
+  });
+
+  final IconData icon;
+  final String? value;
+  final String label;
+  final bool muted;
+  final String? note;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final text = (value == null || value!.isEmpty) ? '–' : value!;
+    return Opacity(
+      opacity: muted ? 0.5 : 1,
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: colors.surface2,
+              borderRadius: BorderRadius.circular(AppRadius.control),
+            ),
+            child: Icon(icon, size: 18, color: colors.textMuted),
+          ),
           const SizedBox(width: 12),
-          Flexible(
+          Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  (value == null || value.isEmpty) ? '–' : value,
-                  textAlign: TextAlign.right,
-                  style: muted
-                      ? TextStyle(fontSize: 14, color: context.colors.textMuted)
-                      : const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                ),
-                if (note != null)
-                  Text(
-                    note,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: context.colors.textMuted,
-                    ),
+                  text,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    color: muted ? colors.textMuted : null,
                   ),
+                ),
+                Text(
+                  note == null ? label : '$label · $note',
+                  style: TextStyle(fontSize: 12, color: colors.textMuted),
+                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: colors.surface2,
+        borderRadius: BorderRadius.circular(AppRadius.pill),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: colors.textMuted,
+        ),
+      ),
+    );
+  }
+}
+
+// A password field with an eye button to show or hide what was typed
+class _PasswordField extends StatefulWidget {
+  const _PasswordField({
+    required this.label,
+    required this.controller,
+    this.hint,
+    this.enabled = true,
+    this.autofocus = false,
+    this.onSubmitted,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final String? hint;
+  final bool enabled;
+  final bool autofocus;
+  final ValueChanged<String>? onSubmitted;
+
+  @override
+  State<_PasswordField> createState() => _PasswordFieldState();
+}
+
+class _PasswordFieldState extends State<_PasswordField> {
+  bool _shown = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return LabeledField(
+      label: widget.label,
+      hint: widget.hint,
+      controller: widget.controller,
+      obscure: !_shown,
+      enabled: widget.enabled,
+      autofocus: widget.autofocus,
+      onSubmitted: widget.onSubmitted,
+      suffix: IconButton(
+        tooltip: _shown ? 'Hide password' : 'Show password',
+        icon: Icon(
+          _shown ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+        ),
+        onPressed: () => setState(() => _shown = !_shown),
       ),
     );
   }
