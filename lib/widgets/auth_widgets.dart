@@ -18,10 +18,7 @@ class AuthBrand extends StatelessWidget {
         const SizedBox(width: AppSpacing.sm),
         const Text(
           'PinePal',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
       ],
     );

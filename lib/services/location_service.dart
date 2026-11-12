@@ -16,9 +16,9 @@ class PositionResult {
 
   // 0.0 / 0.0 is what ScanRecord treats as "no GPS fix"
   const PositionResult.unavailable()
-      : latitude = 0.0,
-        longitude = 0.0,
-        isAvailable = false;
+    : latitude = 0.0,
+      longitude = 0.0,
+      isAvailable = false;
 }
 
 class LocationService {

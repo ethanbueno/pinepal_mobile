@@ -81,7 +81,8 @@ class ClassifierService {
     var labelsFile = defaultLabelsFile;
     try {
       final config =
-          jsonDecode(await rootBundle.loadString(configPath)) as Map<String, dynamic>;
+          jsonDecode(await rootBundle.loadString(configPath))
+              as Map<String, dynamic>;
       modelFile = config['model'] as String? ?? modelFile;
       labelsFile = config['labels_file'] as String? ?? labelsFile;
       pineappleThreshold =
@@ -93,8 +94,10 @@ class ClassifierService {
     }
 
     final options = InterpreterOptions()..threads = 2;
-    final interpreter =
-        await Interpreter.fromAsset('$modelsDir/$modelFile', options: options);
+    final interpreter = await Interpreter.fromAsset(
+      '$modelsDir/$modelFile',
+      options: options,
+    );
     interpreter.allocateTensors();
 
     // Read the shapes from the model instead of hard-coding them,
@@ -104,7 +107,9 @@ class ClassifierService {
 
     if (inputShape.length != 4 || inputShape[3] != 3) {
       interpreter.close();
-      throw StateError('Unexpected input shape $inputShape, expected [1, H, W, 3].');
+      throw StateError(
+        'Unexpected input shape $inputShape, expected [1, H, W, 3].',
+      );
     }
 
     _inputSize = inputShape[1];

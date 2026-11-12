@@ -110,7 +110,7 @@ void main() {
       expect(later.syncMode, SyncMode.automatic);
       expect(later.wifiOnly, false);
       expect(later.farmName, 'Bueno Farm');
-      expect(later.municipality, 'Alicia');
+      expect(later.municipality, 'Echague'); // every farm is in Echague
     });
 
     test(
@@ -151,6 +151,15 @@ void main() {
       final later = AppSettings();
       await later.load();
       expect(later.developerOptions, true);
+    });
+
+    test('a town saved before the Echague lock is moved to Echague', () async {
+      SharedPreferences.setMockInitialValues({'municipality': 'Ilagan City'});
+      final loaded = AppSettings();
+      await loaded.load();
+      expect(loaded.municipality, 'Echague');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('municipality'), 'Echague');
     });
 
     test('a municipality that is not in the list is ignored', () async {

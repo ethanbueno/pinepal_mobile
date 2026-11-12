@@ -19,7 +19,8 @@ class AppSettings extends ChangeNotifier {
   // the app is built:
   //   flutter run --dart-define=PINEPAL_API_URL=https://your-server
   // Without it the app talks to a server on the same computer: 10.0.2.2 is how
-  // the Android emulator reaches the computer it runs on.
+  // the Android emulator reaches the computer it runs on. A real phone needs
+  // the laptop's Wi-Fi address instead, e.g. http://192.168.1.5:5000.
   // Developers can override it in Settings > Developer (see developerOptions).
   static const defaultServerUrl = String.fromEnvironment(
     'PINEPAL_API_URL',
@@ -66,7 +67,11 @@ class AppSettings extends ChangeNotifier {
       _wifiOnly = prefs.getBool(_wifiKey) ?? true;
       _farmName = prefs.getString(_farmKey) ?? '';
       final saved = prefs.getString(_municipalityKey);
-      _municipality = municipalities.contains(saved) ? saved! : '';
+      // Every farm is in Echague: a town saved before the lock becomes Echague
+      _municipality = municipalities.contains(saved) ? scanMunicipality : '';
+      if (_municipality.isNotEmpty && saved != _municipality) {
+        await prefs.setString(_municipalityKey, _municipality);
+      }
       _introSeen = prefs.getBool(_introSeenKey) ?? false;
       notifyListeners();
     } catch (_) {
@@ -128,9 +133,9 @@ class AppSettings extends ChangeNotifier {
 
   Future<void> setMunicipality(String value) async {
     if (!municipalities.contains(value)) return;
-    _municipality = value;
+    _municipality = scanMunicipality; // locked to Echague
     notifyListeners();
-    await _save((p) => p.setString(_municipalityKey, value));
+    await _save((p) => p.setString(_municipalityKey, scanMunicipality));
   }
 
   Future<void> setIntroSeen() async {

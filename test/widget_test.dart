@@ -26,7 +26,7 @@ void main() {
   testWidgets('App starts on the PinePal home screen', (tester) async {
     await tester.pumpWidget(const PinePalApp(showIntro: false));
 
-    expect(find.text('PINEPAL'), findsWidgets);
+    expect(find.text('PinePal'), findsWidgets);
   });
 
   testWidgets('intro: splash, onboarding, loading, then welcome', (
@@ -57,7 +57,7 @@ void main() {
     await tester.tap(find.text('Skip'));
     await wait(tester, 800);
     expect(find.byType(WelcomeScreen), findsNothing);
-    expect(find.text('PINEPAL'), findsWidgets);
+    expect(find.text('PinePal'), findsWidgets);
     expect(AppSettings.instance.introSeen, true);
   });
 
