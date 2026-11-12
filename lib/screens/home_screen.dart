@@ -250,11 +250,10 @@ class _HomeTabState extends State<_HomeTab> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'PINEPAL',
+                        'PinePal',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w600,
-                          letterSpacing: 1.2,
                           height: 1.1,
                         ),
                       ),

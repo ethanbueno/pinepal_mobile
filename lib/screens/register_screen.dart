@@ -183,15 +183,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _register(),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    'This creates a farmer account. Officers and admins are '
-                    'added by an admin.',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: context.colors.textMuted,
-                    ),
-                  ),
                   if (_error != null) ...[
                     const SizedBox(height: AppSpacing.md),
                     AuthError(message: _error!),

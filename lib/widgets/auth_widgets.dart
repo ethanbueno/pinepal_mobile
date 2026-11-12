@@ -6,7 +6,7 @@ import '../theme/app_colors.dart';
 // app name, fields with hint text inside the box, round pill buttons and the
 // error box.
 
-// Logo with "PINEPAL" next to it
+// Logo with "PinePal" next to it
 class AuthBrand extends StatelessWidget {
   const AuthBrand({super.key});
 
@@ -17,11 +17,10 @@ class AuthBrand extends StatelessWidget {
         Image.asset('assets/icons/logo.png', width: 44),
         const SizedBox(width: AppSpacing.sm),
         const Text(
-          'PINEPAL',
+          'PinePal',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w600,
-            letterSpacing: 1.2,
           ),
         ),
       ],
