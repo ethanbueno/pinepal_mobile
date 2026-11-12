@@ -93,7 +93,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _deleteScan(ScanRecord scan) async {
     final ok = await _confirm(
       'Delete this scan?',
-      'The record for ${LabelService.pretty(scan.predictedLabel)} and its '
+      'Are you sure you want to delete this '
+          '${LabelService.pretty(scan.predictedLabel)} scan? Its record and '
           'photo will be removed permanently.',
     );
     if (!ok) return;
@@ -113,7 +114,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _clearHistory(List<ScanRecord> scans) async {
     final ok = await _confirm(
       'Clear all history?',
-      'All ${scans.length} scans and their photos will be removed permanently.',
+      'Are you sure you want to delete all ${scans.length} scans? They and '
+          'their photos will be removed permanently.',
     );
     if (!ok) return;
 

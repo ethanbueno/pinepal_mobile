@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/app_settings.dart';
 import '../theme/app_colors.dart';
+import '../utils/municipalities.dart';
 import 'labeled_field.dart';
 import 'municipality_dropdown.dart';
 
@@ -28,11 +29,6 @@ class _FarmDetailsSheetState extends State<_FarmDetailsSheet> {
   late final TextEditingController _farm = TextEditingController(
     text: widget.settings.farmName,
   );
-  // null until the farmer picks one; the farm details can't be saved without it
-  late String? _municipality = widget.settings.municipality.isEmpty
-      ? null
-      : widget.settings.municipality;
-
   @override
   void dispose() {
     _farm.dispose();
@@ -41,7 +37,7 @@ class _FarmDetailsSheetState extends State<_FarmDetailsSheet> {
 
   Future<void> _save() async {
     await widget.settings.setFarmName(_farm.text);
-    await widget.settings.setMunicipality(_municipality!);
+    await widget.settings.setMunicipality(scanMunicipality);
     if (mounted) Navigator.pop(context);
   }
 
@@ -79,8 +75,8 @@ class _FarmDetailsSheetState extends State<_FarmDetailsSheet> {
             ),
             const SizedBox(height: 14),
             MunicipalityDropdown(
-              value: _municipality,
-              onChanged: (value) => setState(() => _municipality = value),
+              value: scanMunicipality,
+              onChanged: null, // locked to Echague
             ),
             const SizedBox(height: 20),
             SizedBox(
@@ -89,7 +85,7 @@ class _FarmDetailsSheetState extends State<_FarmDetailsSheet> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                onPressed: _municipality == null ? null : _save,
+                onPressed: _save,
                 child: const Text('Save'),
               ),
             ),

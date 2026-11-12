@@ -8,6 +8,7 @@ import '../utils/format.dart';
 import '../widgets/farm_details_sheet.dart';
 import '../widgets/section_card.dart';
 import 'login_screen.dart';
+import 'my_profile_screen.dart';
 import 'settings_screen.dart';
 
 // The Profile tab is about the farmer: who is signed in, the farm, and what is
@@ -40,6 +41,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
+    );
+  }
+
+  // The full profile from the server: details, edit name and farm, password
+  Future<void> _openMyProfile() {
+    return Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MyProfileScreen(auth: _auth, settings: _settings),
+      ),
     );
   }
 
@@ -219,6 +230,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+            icon: const Icon(Icons.badge_outlined),
+            label: const Text('View my profile'),
+            onPressed: _openMyProfile,
+          ),
+        ),
+        const SizedBox(height: 10),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(

@@ -84,27 +84,30 @@ void main() {
     },
   );
 
-  test('scans without farm details get the ones from Settings', () async {
-    await settings.setFarmName('Bueno Farm');
-    await settings.setMunicipality('Alicia');
-    await db.insertScan(makeScan('old-scan', at: DateTime(2026, 10, 1)));
-    await db.insertScan(
-      makeScan(
-        'own-details',
-        at: DateTime(2026, 10, 2),
-        municipality: 'Burgos',
-        farmName: 'Other Farm',
-      ),
-    );
+  test(
+    'scans without a farm name get it from Settings; all go under Echague',
+    () async {
+      await settings.setFarmName('Bueno Farm');
+      await settings.setMunicipality('Alicia');
+      await db.insertScan(makeScan('old-scan', at: DateTime(2026, 10, 1)));
+      await db.insertScan(
+        makeScan(
+          'own-details',
+          at: DateTime(2026, 10, 2),
+          municipality: 'Burgos',
+          farmName: 'Other Farm',
+        ),
+      );
 
-    await serviceWith(accept).syncPending(token: 't');
+      await serviceWith(accept).syncPending(token: 't');
 
-    expect(bodies[0], contains('name="municipality"\r\n\r\nAlicia'));
-    expect(bodies[0], contains('name="farm_name"\r\n\r\nBueno Farm'));
-    // a scan keeps its own details
-    expect(bodies[1], contains('name="municipality"\r\n\r\nBurgos'));
-    expect(bodies[1], contains('name="farm_name"\r\n\r\nOther Farm'));
-  });
+      expect(bodies[0], contains('name="municipality"\r\n\r\nEchague'));
+      expect(bodies[0], contains('name="farm_name"\r\n\r\nBueno Farm'));
+      // a scan keeps its own farm name, but the municipality is always Echague
+      expect(bodies[1], contains('name="municipality"\r\n\r\nEchague'));
+      expect(bodies[1], contains('name="farm_name"\r\n\r\nOther Farm'));
+    },
+  );
 
   test('nothing is sent when nothing is pending', () async {
     final result = await serviceWith(accept).syncPending(token: 't');

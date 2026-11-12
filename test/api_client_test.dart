@@ -62,6 +62,100 @@ void main() {
     expect(session.user.roleLabel, 'Farmer');
   });
 
+  test('the profile is read with the account token, farm included', () async {
+    late http.Request seen;
+    final api = clientFor((request) async {
+      seen = request;
+      return http.Response(
+        jsonEncode({
+          'account': {
+            'full_name': 'Juan Dela Cruz',
+            'username': 'juan',
+            'email': 'juan@example.com',
+            'role': 'farmer',
+            'created_at': '2026-10-01T08:00:00',
+          },
+          'farm': {
+            'farmer_id': 'F012',
+            'farm_name': 'Bueno Farm',
+            'municipality': 'Echague',
+            'farm_size_ha': 2.5,
+            'farm_latitude': 16.7,
+            'farm_longitude': 121.68,
+            'is_active': true,
+            'registered_at': '2026-10-01T08:00:00',
+            'total_scans': 14,
+          },
+        }),
+        200,
+      );
+    });
+
+    final profile = await api.getProfile(token: 'tok');
+
+    expect(seen.method, 'GET');
+    expect(seen.url.path, '/api/profile');
+    expect(seen.headers['Authorization'], 'Bearer tok');
+    expect(profile.email, 'juan@example.com');
+    expect(profile.farm!.farmerId, 'F012');
+    expect(profile.farm!.municipality, 'Echague');
+    expect(profile.farm!.sizeHa, 2.5);
+    expect(profile.farm!.totalScans, 14);
+  });
+
+  test('saving the profile sends only the fields that can change', () async {
+    late http.Request seen;
+    final api = clientFor((request) async {
+      seen = request;
+      return http.Response(
+        jsonEncode({
+          'account': {
+            'full_name': 'Juan D. Cruz',
+            'username': 'juan',
+            'role': 'officer',
+          },
+          'farm': null,
+        }),
+        200,
+      );
+    });
+
+    final profile = await api.updateProfile(
+      token: 'tok',
+      fullName: 'Juan D. Cruz',
+    );
+
+    expect(seen.method, 'PUT');
+    expect(seen.headers['Authorization'], 'Bearer tok');
+    expect(jsonDecode(seen.body), {'full_name': 'Juan D. Cruz'});
+    expect(profile.fullName, 'Juan D. Cruz');
+    expect(profile.farm, isNull);
+  });
+
+  test('a wrong current password shows the server message', () async {
+    final api = clientFor(
+      (request) async => http.Response(
+        jsonEncode({'error': 'Your current password is wrong'}),
+        403,
+      ),
+    );
+
+    expect(
+      () => api.changePassword(
+        token: 'tok',
+        currentPassword: 'nope',
+        newPassword: 'longenough',
+      ),
+      throwsA(
+        isA<ApiException>().having(
+          (e) => e.message,
+          'message',
+          'Your current password is wrong',
+        ),
+      ),
+    );
+  });
+
   test('a wrong password shows the server message', () async {
     final api = clientFor(
       (_) async => http.Response(
