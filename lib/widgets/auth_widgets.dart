@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 // Pieces shared by the sign in and create account screens: the logo with the
-// app name, fields with the label inside the box (like the web Login page),
-// round pill buttons and the error box.
+// app name, fields with hint text inside the box, round pill buttons and the
+// error box.
 
 // Logo with "PINEPAL" next to it
 class AuthBrand extends StatelessWidget {
@@ -29,8 +29,8 @@ class AuthBrand extends StatelessWidget {
   }
 }
 
-// A text field with its label inside the box. The label moves up once the
-// field has focus or text, like FloatingInput on the web.
+// A text field with [label] shown as hint text inside the box. The hint
+// disappears once the user starts typing.
 class AuthField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
@@ -71,9 +71,8 @@ class AuthField extends StatelessWidget {
       onSubmitted: onSubmitted,
       style: const TextStyle(fontSize: 16),
       decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: context.colors.textMuted),
-        floatingLabelStyle: TextStyle(color: context.colors.textMuted),
+        hintText: label,
+        hintStyle: TextStyle(color: context.colors.textMuted),
         filled: true,
         fillColor: context.colors.surface,
         contentPadding: const EdgeInsets.symmetric(
