@@ -8,6 +8,7 @@ import '../services/label_service.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
 import '../utils/image_size.dart';
+import '../widgets/pinepal_loader.dart';
 
 // The feedback screen. The prediction and confidence are read-only because
 // they are what the model produced; only the farmer's feedback and notes can
@@ -206,7 +207,7 @@ class _EditScanScreenState extends State<EditScanScreen> {
         future: _labels,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: PinePalLoader());
           }
           final labels = snapshot.data ?? [];
 

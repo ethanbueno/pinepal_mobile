@@ -6,6 +6,7 @@ import '../theme/app_colors.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/protocol_cards.dart';
 import '../widgets/tile_card.dart';
+import '../widgets/pinepal_loader.dart';
 
 // Guide tab: every disease the app knows, with how to recognise and treat it.
 // Works offline, the data is bundled in assets/data.
@@ -28,7 +29,7 @@ class _GuideScreenState extends State<GuideScreen> {
         future: _protocols,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: PinePalLoader(label: 'Loading guides...'));
           }
           final protocols = snapshot.data ?? [];
 

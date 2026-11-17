@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/app_colors.dart';
+import '../../widgets/pinepal_loader.dart';
 import 'intro_widgets.dart';
 import 'welcome_screen.dart';
 
-// A blank screen with a small spinner for a moment after "Get Started", then
+// A blank screen with the PinePal loader for a moment after "Get Started", then
 // the welcome screen.
 class IntroLoadingScreen extends StatefulWidget {
   const IntroLoadingScreen({super.key});
@@ -28,16 +28,7 @@ class _IntroLoadingScreenState extends State<IntroLoadingScreen> {
   @override
   Widget build(BuildContext context) {
     return IntroPage(
-      body: Center(
-        child: SizedBox(
-          width: 28,
-          height: 28,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            color: context.colors.accent,
-          ),
-        ),
-      ),
+      body: const Center(child: PinePalLoader()),
     );
   }
 }

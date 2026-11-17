@@ -12,6 +12,7 @@ import 'empty_state.dart';
 import '../utils/map_area.dart';
 import 'scan_heat_map.dart';
 import 'section_card.dart';
+import 'pinepal_loader.dart';
 
 // Where the dashboard numbers come from
 enum DashboardSource {
@@ -128,7 +129,7 @@ class _FarmDashboardState extends State<FarmDashboard> {
             if (snapshot.connectionState != ConnectionState.done) {
               return const Padding(
                 padding: EdgeInsets.all(AppSpacing.section),
-                child: Center(child: CircularProgressIndicator()),
+                child: Center(child: PinePalLoader(size: 72)),
               );
             }
             if (snapshot.hasError) {

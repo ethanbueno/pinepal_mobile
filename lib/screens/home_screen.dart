@@ -16,6 +16,7 @@ import 'history_screen.dart';
 import 'profile_screen.dart';
 import 'result_detail_screen.dart';
 import 'scanner_screen.dart';
+import '../widgets/pinepal_loader.dart';
 
 // The main screen after the app starts: bottom navigation bar with
 // Home, History, Guide, Profile and a big Scan button in the middle.
@@ -302,7 +303,7 @@ class _HomeTabState extends State<_HomeTab> {
                 if (snapshot.connectionState != ConnectionState.done) {
                   return const Padding(
                     padding: EdgeInsets.all(AppSpacing.page),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: Center(child: PinePalLoader(size: 64)),
                   );
                 }
                 final scans = snapshot.data ?? [];

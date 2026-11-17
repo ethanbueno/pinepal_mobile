@@ -95,6 +95,7 @@ flutter:
     - assets/models/pinepal_model_config.json
     - assets/models/labels.txt
     - assets/icons/logo.png
+    - assets/icons/loader_logo.png
     - assets/data/remediation_protocols.json
     - assets/images/diseases/
     # splash, onboarding and welcome images (names in lib/screens/intro/intro_content.dart)

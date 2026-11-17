@@ -6,6 +6,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../widgets/pinepal_loader.dart';
 import '../widgets/scanner_controls.dart';
 import 'history_screen.dart';
 import 'photo_preview_screen.dart';
@@ -374,11 +375,10 @@ class _ScannerScreenState extends State<ScannerScreen>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 16),
-          Text(
-            'Starting camera...',
-            style: TextStyle(color: AppPalette.dark.textMuted),
+          PinePalLoader(
+            label: 'Starting camera...',
+            trackColor: AppPalette.dark.line,
+            labelColor: AppPalette.dark.textMuted,
           ),
         ],
       ),

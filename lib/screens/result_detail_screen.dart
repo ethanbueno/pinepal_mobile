@@ -14,6 +14,7 @@ import '../utils/image_size.dart';
 import '../widgets/confidence_bar.dart';
 import '../widgets/protocol_cards.dart';
 import 'edit_scan_screen.dart';
+import '../widgets/pinepal_loader.dart';
 
 // Full diagnostic report for one saved scan: photo, what the model found,
 // the disease profile and the step-by-step remediation. Opened from the
@@ -58,7 +59,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
         future: _protocol,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: PinePalLoader(label: 'Loading report...'));
           }
           final protocol =
               snapshot.data ??

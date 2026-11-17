@@ -15,6 +15,7 @@ import '../utils/format.dart';
 import '../utils/image_size.dart';
 import 'edit_scan_screen.dart';
 import 'result_detail_screen.dart';
+import '../widgets/pinepal_loader.dart';
 
 // List of saved scans. Tap a scan for the full report, verify it, delete it,
 // clear the whole history, or export everything to CSV.
@@ -337,7 +338,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     List<ScanRecord> scans,
   ) {
     if (snapshot.connectionState != ConnectionState.done) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: PinePalLoader(label: 'Loading scans...'));
     }
     if (snapshot.hasError) {
       return ListView(

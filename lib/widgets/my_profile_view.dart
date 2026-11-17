@@ -10,6 +10,7 @@ import '../utils/password_rules.dart';
 import '../widgets/auth_widgets.dart';
 import '../widgets/labeled_field.dart';
 import '../widgets/section_card.dart';
+import 'pinepal_loader.dart';
 
 const _echagueOnly = 'Echague only for now';
 
@@ -396,7 +397,7 @@ class _MyProfileViewState extends State<MyProfileView> {
         height: 160,
         alignment: Alignment.center,
         decoration: _cardDecoration(context),
-        child: const CircularProgressIndicator(),
+        child: const PinePalLoader(size: 64),
       );
     }
     return _buildProfile(p);
