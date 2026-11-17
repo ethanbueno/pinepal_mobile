@@ -5,6 +5,7 @@ import 'screens/home_screen.dart';
 import 'screens/intro/splash_screen.dart';
 import 'services/app_settings.dart';
 import 'services/auth_controller.dart';
+import 'services/map_tile_cache.dart';
 import 'services/sync_controller.dart';
 import 'theme/app_scroll_behavior.dart';
 import 'theme/app_theme.dart';
@@ -17,6 +18,7 @@ Future<void> main() async {
     ThemeController.load(),
     AppSettings.instance.load(),
     AuthController.instance.load(),
+    MapTileCache.init(), // before any map is built
   ]);
   runApp(const PinePalApp());
   SyncController.instance.init();

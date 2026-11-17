@@ -42,6 +42,14 @@ class DashboardScan {
       longitude: (json['longitude'] as num).toDouble(),
     );
   }
+
+  // The same shape as fromJson reads, for the saved copy (DashboardCache)
+  Map<String, dynamic> toJson() => {
+    'label': label,
+    'scanned_at': scannedAt.toIso8601String(),
+    'latitude': latitude,
+    'longitude': longitude,
+  };
 }
 
 // One bar of the weekly chart

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/dashboard_stats.dart';
 import '../services/api_client.dart';
 import '../services/auth_controller.dart';
+import '../services/dashboard_cache.dart';
 import '../services/database_helper.dart';
 import '../services/label_service.dart';
 import '../services/sync_controller.dart';
@@ -40,8 +41,10 @@ class FarmDashboard extends StatefulWidget {
 class _DashboardData {
   final DashboardStats stats;
   final List<String> labels; // labels.txt, the order of the bars
+  // Online only: when these numbers are the saved copy, the time it was saved
+  final DateTime? savedAt;
 
-  const _DashboardData(this.stats, this.labels);
+  const _DashboardData(this.stats, this.labels, {this.savedAt});
 }
 
 class _FarmDashboardState extends State<FarmDashboard> {
@@ -79,12 +82,51 @@ class _FarmDashboardState extends State<FarmDashboard> {
     }
   }
 
+  // Who the saved Online copy belongs to: the account, or this phone's farmer ID
+  String? get _cacheOwner {
+    final user = _auth.user;
+    if (user != null) return 'user_${user.id}';
+    final phone = _auth.phoneFarmer;
+    return phone == null ? null : 'phone_${phone.farmerId}';
+  }
+
   Future<_DashboardData> _load() async {
     final labels = await LabelService.load();
-    final scans = _source == DashboardSource.phone
-        ? await _phoneScans()
-        : await _onlineScans();
+    if (_source == DashboardSource.phone) {
+      return _DashboardData(DashboardStats(await _phoneScans()), labels);
+    }
+
+    // Online: show the saved copy right away when there is one, and fetch the
+    // fresh numbers in the background (stale-while-revalidate)
+    final owner = _cacheOwner;
+    final saved = owner == null ? null : await DashboardCache.load(owner);
+    if (saved != null) {
+      _refreshOnline(owner!, labels);
+      return _DashboardData(
+        DashboardStats(saved.scans),
+        labels,
+        savedAt: saved.savedAt,
+      );
+    }
+    final scans = await _onlineScans();
+    if (owner != null) await DashboardCache.save(owner, scans);
     return _DashboardData(DashboardStats(scans), labels);
+  }
+
+  // The background half of _load: swap in the server's numbers once they
+  // arrive. If the server cannot be reached the saved copy stays on screen,
+  // with its date under the toggle.
+  Future<void> _refreshOnline(String owner, List<String> labels) async {
+    try {
+      final scans = await _onlineScans();
+      await DashboardCache.save(owner, scans);
+      if (!mounted || _source != DashboardSource.online) return;
+      setState(() {
+        _data = Future.value(_DashboardData(DashboardStats(scans), labels));
+      });
+    } catch (_) {
+      // offline or signed out: keep showing the saved copy
+    }
   }
 
   void _show(DashboardSource source) {
@@ -144,6 +186,20 @@ class _FarmDashboardState extends State<FarmDashboard> {
               );
             }
             final data = snapshot.data!;
+            final savedNote = data.savedAt == null
+                ? null
+                : Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: Text(
+                      'Showing your saved numbers from '
+                      '${_savedLabel(data.savedAt!)}. They update when the '
+                      'server answers.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: context.colors.textMuted,
+                      ),
+                    ),
+                  );
             if (data.stats.total == 0) {
               return EmptyState(
                 icon: Icons.eco_outlined,
@@ -154,12 +210,41 @@ class _FarmDashboardState extends State<FarmDashboard> {
                           'from Settings.',
               );
             }
-            return _DashboardBody(data: data);
+            if (savedNote == null) return _DashboardBody(data: data);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                savedNote,
+                _DashboardBody(data: data),
+              ],
+            );
           },
         ),
       ],
     );
   }
+}
+
+// "17 Nov, 3:05 PM" for the saved-copy note
+String _savedLabel(DateTime t) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  final hour = t.hour % 12 == 0 ? 12 : t.hour % 12;
+  final minute = t.minute.toString().padLeft(2, '0');
+  return '${t.day} ${months[t.month - 1]}, $hour:$minute '
+      '${t.hour < 12 ? 'AM' : 'PM'}';
 }
 
 // One line under the toggle that says what the farmer is looking at
