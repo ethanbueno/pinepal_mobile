@@ -6,10 +6,11 @@ import '../services/app_settings.dart';
 import '../services/auth_controller.dart';
 import '../theme/app_colors.dart';
 import '../utils/format.dart';
+import '../utils/password_rules.dart';
+import '../widgets/auth_widgets.dart';
 import '../widgets/labeled_field.dart';
 import '../widgets/section_card.dart';
 
-const _minPassword = 6; // same as MIN_PASSWORD in the web backend
 const _echagueOnly = 'Echague only for now';
 
 // What Edit profile can change, one at a time, same as the web (EDITABLE in
@@ -152,9 +153,7 @@ class _MyProfileViewState extends State<MyProfileView> {
       if (size == null || size < 0) return 'Farm size must be a number.';
     }
     if (key == 'new_password') {
-      if (text.length < _minPassword) {
-        return 'The new password must be at least $_minPassword characters.';
-      }
+      if (passwordProblem(text) case final rule?) return rule;
       if (text != _confirm.text) return 'The new passwords do not match.';
     }
     if (item.secure && _current.text.isEmpty) {
@@ -317,7 +316,6 @@ class _MyProfileViewState extends State<MyProfileView> {
             if (item.key == 'new_password') ...[
               _PasswordField(
                 label: 'New password',
-                hint: 'At least $_minPassword characters',
                 controller: _value,
                 enabled: !_saving,
                 autofocus: true,
@@ -328,6 +326,7 @@ class _MyProfileViewState extends State<MyProfileView> {
                 controller: _confirm,
                 enabled: !_saving,
               ),
+              PasswordChecklist(password: _value, confirm: _confirm),
             ] else
               LabeledField(
                 label: 'New $label',

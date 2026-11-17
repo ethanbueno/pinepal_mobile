@@ -18,7 +18,7 @@ void main() {
     preventiveMeasures: ['Avoid wounding the fruit.', 'Improve drainage.'],
   );
 
-  testWidgets('guide cards read as paragraphs, not bullet lists', (
+  testWidgets('symptoms and prevention show as bullet lists', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -37,15 +37,11 @@ void main() {
       ),
     );
 
-    // Symptoms and prevention are one paragraph each
-    expect(
-      find.text('Yellow crown leaves. Soft tissue at the base.'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('Avoid wounding the fruit. Improve drainage.'),
-      findsOneWidget,
-    );
+    // Symptoms and prevention are bullet lists, one line per item
+    expect(find.text('Yellow crown leaves.'), findsOneWidget);
+    expect(find.text('Soft tissue at the base.'), findsOneWidget);
+    expect(find.text('Avoid wounding the fruit.'), findsOneWidget);
+    expect(find.text('Improve drainage.'), findsOneWidget);
     expect(find.byIcon(Icons.center_focus_weak), findsNothing);
     expect(find.byIcon(Icons.shield_outlined), findsNothing);
 
@@ -58,5 +54,21 @@ void main() {
     expect(find.text('1.'), findsOneWidget);
     expect(find.text('2.'), findsOneWidget);
     expect(find.text('Remove infected plants.'), findsOneWidget);
+  });
+
+  test('images falls back to [image] when the JSON has no images list', () {
+    final withImage = RemediationProtocol.fromJson('Crown Rot', {
+      'image': 'assets/images/diseases/crown_rot.jpg',
+    });
+    expect(withImage.images, ['assets/images/diseases/crown_rot.jpg']);
+
+    final withList = RemediationProtocol.fromJson('Crown Rot', {
+      'image': 'a.jpg',
+      'images': ['a.jpg', 'a_2.jpg'],
+    });
+    expect(withList.images, ['a.jpg', 'a_2.jpg']);
+
+    final none = RemediationProtocol.fromJson('Crown Rot', {});
+    expect(none.images, isEmpty);
   });
 }

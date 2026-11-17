@@ -52,6 +52,8 @@ dependencies:
   # map of the farmer's own scan spots on the dashboard (OpenStreetMap)
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
+  # opens the source links in the disease guides
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

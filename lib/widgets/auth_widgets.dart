@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../utils/password_rules.dart';
 
 // Pieces shared by the sign in and create account screens: the logo with the
 // app name, fields with hint text inside the box, round pill buttons and the
@@ -168,6 +169,70 @@ class AuthError extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// The password rules under a new-password box, ticked off while typing.
+// Hidden until something is typed. Pass [confirm] to add a "Passwords match"
+// line once the confirm box has something in it.
+class PasswordChecklist extends StatelessWidget {
+  final TextEditingController password;
+  final TextEditingController? confirm;
+
+  const PasswordChecklist({super.key, required this.password, this.confirm});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([password, ?confirm]),
+      builder: (context, _) {
+        final pw = password.text;
+        if (pw.isEmpty) return const SizedBox.shrink();
+        final lines = [
+          for (final rule in passwordRules) (rule.label, rule.test(pw)),
+          if (confirm != null && confirm!.text.isNotEmpty)
+            ('Passwords match', pw == confirm!.text),
+        ];
+        return Padding(
+          padding: const EdgeInsets.only(
+            top: AppSpacing.sm,
+            left: AppSpacing.xs,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final (label, met) in lines)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Icon(
+                        met ? Icons.check_rounded : Icons.circle_outlined,
+                        size: 16,
+                        color: met
+                            ? context.colors.accentText
+                            : context.colors.textMuted,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: met
+                                ? context.colors.text
+                                : context.colors.textMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

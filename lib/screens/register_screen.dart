@@ -5,6 +5,7 @@ import '../services/auth_controller.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
 import '../utils/municipalities.dart';
+import '../utils/password_rules.dart';
 import '../widgets/auth_widgets.dart';
 
 // Create a farmer account (the server only allows farmers to sign up; officers
@@ -28,6 +29,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirm = TextEditingController();
 
   bool _busy = false;
+  bool _showPassword = false; // the eye button, for both password boxes
   String? _error;
 
   @override
@@ -54,6 +56,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       problem = 'All fields are required.';
     } else if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
       problem = 'Enter a valid email address.';
+    } else if (passwordProblem(_password.text) case final rule?) {
+      problem = rule;
     } else if (_password.text != _confirm.text) {
       problem = 'The passwords do not match.';
     }
@@ -171,18 +175,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     label: 'Password',
                     controller: _password,
                     enabled: !_busy,
-                    obscure: true,
+                    obscure: !_showPassword,
                     textInputAction: TextInputAction.next,
+                    suffix: IconButton(
+                      tooltip: _showPassword
+                          ? 'Hide password'
+                          : 'Show password',
+                      icon: Icon(
+                        _showPassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                      ),
+                      onPressed: () =>
+                          setState(() => _showPassword = !_showPassword),
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   AuthField(
                     label: 'Confirm password',
                     controller: _confirm,
                     enabled: !_busy,
-                    obscure: true,
+                    obscure: !_showPassword,
                     textInputAction: TextInputAction.done,
                     onSubmitted: (_) => _register(),
                   ),
+                  // the rules, ticked off while typing
+                  PasswordChecklist(password: _password, confirm: _confirm),
                   if (_error != null) ...[
                     const SizedBox(height: AppSpacing.md),
                     AuthError(message: _error!),

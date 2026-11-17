@@ -22,7 +22,14 @@ void main() {
         isNot('N/A'),
         reason: '$label has no entry in remediation_protocols.json',
       );
-      expect(protocol.remediationSteps, isNotEmpty, reason: label);
+      if (label == 'No_Disease') {
+        // The healthy guide has no treatment steps on purpose; it gives
+        // checks and scan tips instead
+        expect(protocol.checks, isNotEmpty, reason: label);
+        expect(protocol.scanTips, isNotEmpty, reason: label);
+      } else {
+        expect(protocol.remediationSteps, isNotEmpty, reason: label);
+      }
     }
   });
 

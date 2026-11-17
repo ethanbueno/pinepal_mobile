@@ -129,7 +129,8 @@ class _DiseaseTile extends StatelessWidget {
                       runSpacing: AppSpacing.xs,
                       children: [
                         KindChip(kind: protocol.kind),
-                        SeverityChip(severity: protocol.severity),
+                        if (protocol.severity.toLowerCase() != 'none')
+                          SeverityChip(severity: protocol.severity),
                       ],
                     ),
                   ],
@@ -161,15 +162,6 @@ class _ProtocolDetailScreen extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.page),
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.card),
-                child: _DiseaseImage(
-                  path: protocol.image,
-                  width: double.infinity,
-                  height: 220,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
               DiseaseHeader(protocol: protocol),
               const SizedBox(height: AppSpacing.md),
               PathogenCard(protocol: protocol),

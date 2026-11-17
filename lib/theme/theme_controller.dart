@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'theme_fade.dart';
+
 // Light, dark, or the same as the device (ThemeMode.system), remembered between
 // launches. Light is the default, like the web.
 class ThemeController extends ValueNotifier<ThemeMode> {
@@ -23,6 +25,8 @@ class ThemeController extends ValueNotifier<ThemeMode> {
   }
 
   Future<void> setMode(ThemeMode mode) async {
+    if (mode == value) return;
+    await ThemeFade.captureBeforeSwitch(); // picture of the old look to fade out
     value = mode;
     try {
       final prefs = await SharedPreferences.getInstance();
