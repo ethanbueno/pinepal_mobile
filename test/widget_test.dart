@@ -50,7 +50,7 @@ void main() {
 
     await wait(tester, 1800);
     expect(find.byType(WelcomeScreen), findsOneWidget);
-    expect(find.text('Sign in'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
     expect(find.text('Register'), findsOneWidget);
     expect(find.textContaining('or sign in using'), findsNothing);
 

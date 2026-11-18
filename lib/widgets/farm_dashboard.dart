@@ -120,7 +120,7 @@ class _FarmDashboardState extends State<FarmDashboard> {
               ButtonSegment(
                 value: DashboardSource.phone,
                 icon: Icon(Icons.phone_android),
-                label: Text('On this phone'),
+                label: Text('On This Phone'),
               ),
               ButtonSegment(
                 value: DashboardSource.online,
@@ -147,11 +147,11 @@ class _FarmDashboardState extends State<FarmDashboard> {
             if (snapshot.hasError) {
               return EmptyState(
                 icon: Icons.cloud_off_outlined,
-                title: 'Cannot show the online data',
+                title: 'Cannot Show the Online Data',
                 text: snapshot.error.toString(),
                 action: OutlinedButton(
                   onPressed: () => _show(DashboardSource.phone),
-                  child: const Text('Show the phone data'),
+                  child: const Text('Show the Phone Data'),
                 ),
               );
             }
@@ -173,7 +173,7 @@ class _FarmDashboardState extends State<FarmDashboard> {
             if (data.stats.total == 0) {
               return EmptyState(
                 icon: Icons.eco_outlined,
-                title: 'No scans yet',
+                title: 'No Scans Yet',
                 text: _source == DashboardSource.phone
                     ? 'Scan a pineapple and your numbers will show up here.'
                     : 'None of your scans are on the server yet. Sync them '
@@ -344,7 +344,7 @@ class _ByConditionCard extends StatelessWidget {
     final most = counts.values.fold(0, (a, b) => a > b ? a : b);
 
     return SectionCard(
-      title: 'Scans by condition',
+      title: 'Scans by Condition',
       children: [
         for (final entry in counts.entries) ...[
           Builder(

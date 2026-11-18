@@ -110,12 +110,12 @@ void main() {
     expect(find.text('Overview'), findsOneWidget);
     expect(find.text('14'), findsOneWidget);
     expect(find.text('Farm'), findsOneWidget);
-    expect(find.text('Personal info'), findsOneWidget);
+    expect(find.text('Personal Info'), findsOneWidget);
     expect(find.text('juan@example.com'), findsOneWidget);
     expect(find.text('Municipality · Echague only for now'), findsOneWidget);
-    expect(find.text('Active account'), findsOneWidget);
+    expect(find.text('Active Account'), findsOneWidget);
     // the password has moved into Edit account
-    expect(find.text('Change password'), findsNothing);
+    expect(find.text('Change Password'), findsNothing);
   });
 
   testWidgets('offline: shows the account the phone knows and Try again', (
@@ -154,7 +154,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Juan Dela Cruz'), findsOneWidget);
-    expect(find.text('Try again'), findsOneWidget);
+    expect(find.text('Try Again'), findsOneWidget);
   });
 
   testWidgets('Edit account changes the username with the current password', (
@@ -162,7 +162,7 @@ void main() {
   ) async {
     await showMyProfile(tester);
 
-    await tester.tap(find.text('Edit account'));
+    await tester.tap(find.text('Edit Account'));
     await tester.pumpAndSettle();
     expect(find.text('Change'), findsNWidgets(6));
 
@@ -276,8 +276,8 @@ void main() {
       await tester.tap(find.byTooltip('Change profile photo'));
       await tester.pumpAndSettle();
       // no photo yet, so nothing to remove
-      expect(find.text('Remove photo'), findsNothing);
-      await tester.tap(find.text('Choose from gallery'));
+      expect(find.text('Remove Photo'), findsNothing);
+      await tester.tap(find.text('Choose from Gallery'));
       // the upload reads the file for real, so let real time pass while the
       // spinner turns (pumpAndSettle would wait for the spinner forever)
       for (
@@ -312,7 +312,7 @@ void main() {
       );
       await tester.tap(find.byTooltip('Change profile photo'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Remove photo'));
+      await tester.tap(find.text('Remove Photo'));
       await tester.pumpAndSettle();
 
       expect(sent.last.method, 'DELETE');

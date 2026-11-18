@@ -14,7 +14,7 @@ import 'sync_service.dart';
 // Signed in, scans go to the account's farmer ID. Signed out, automatic mode
 // sends them under this phone's own farmer ID (made on the first such sync);
 // signing in or up later connects that farmer ID to the account.
-// Manual mode: only when the farmer taps "Sync now".
+// Manual mode: only when the farmer taps "Sync Now".
 // Automatic mode: by itself when the app starts, when a connection comes back,
 // and after a scan is saved or edited (on Wi-Fi only, unless turned off).
 class SyncController extends ChangeNotifier {
@@ -84,7 +84,7 @@ class SyncController extends ChangeNotifier {
     await maybeAutoSync();
   }
 
-  // The "Sync now" button
+  // The "Sync Now" button
   Future<void> syncNow() => _run();
 
   // Does nothing unless automatic mode is on, the connection is allowed and

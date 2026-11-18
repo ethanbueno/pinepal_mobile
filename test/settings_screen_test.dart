@@ -55,7 +55,7 @@ void main() {
 
     // Farmers never see the server
     expect(find.text('Developer'), findsNothing);
-    expect(find.text('Server address'), findsNothing);
+    expect(find.text('Server Address'), findsNothing);
   });
 
   testWidgets('appearance can be light, dark or follow the device', (
@@ -106,15 +106,15 @@ void main() {
       await tester.tap(find.text('Version $appVersion'));
     }
     await tester.pump();
-    expect(find.text('Server address'), findsNothing); // not yet
+    expect(find.text('Server Address'), findsNothing); // not yet
 
     await tester.tap(find.text('Version $appVersion'));
     await tester.pump();
 
     expect(settings.developerOptions, true);
     expect(find.text('Developer'), findsOneWidget);
-    expect(find.text('Server address'), findsOneWidget);
-    expect(find.text('Test connection'), findsOneWidget);
+    expect(find.text('Server Address'), findsOneWidget);
+    expect(find.text('Test Connection'), findsOneWidget);
     expect(find.text('Developer options are on.'), findsOneWidget);
   });
 
@@ -122,13 +122,13 @@ void main() {
     final settings = AppSettings();
     await settings.setDeveloperOptions(true);
     await showSettings(tester, settings: settings);
-    expect(find.text('Server address'), findsOneWidget);
+    expect(find.text('Server Address'), findsOneWidget);
 
-    await tester.tap(find.text('Hide developer options'));
+    await tester.tap(find.text('Hide Developer Options'));
     await tester.pump();
 
     expect(settings.developerOptions, false);
-    expect(find.text('Server address'), findsNothing);
+    expect(find.text('Server Address'), findsNothing);
   });
 
   testWidgets('a custom server can be set and reset to the built-in one', (

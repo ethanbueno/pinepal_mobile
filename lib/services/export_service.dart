@@ -4,8 +4,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/scan_record.dart';
+import '../utils/xlsx_writer.dart';
 
-// Writes the scans to a CSV file for the data analytics work, then hands it
+// The two file types the export can make, like the website's Export page
+enum ExportFormat { csv, xlsx }
+
+// Writes the scans to a CSV or Excel (XLSX) file for the data analytics work, then hands it
 // to the system share sheet so the farmer can save it to Drive, send it by
 // email or chat, and so on. No storage permission is needed for this.
 //
@@ -105,10 +109,35 @@ class ExportService {
     return file;
   }
 
+  // The same columns as the CSV, as an Excel sheet (the header row in bold)
+  static List<int> buildXlsxBytes(List<ScanRecord> records) =>
+      buildXlsx(headers, [for (final r in records) _rowFor(r)]);
+
+  static Future<File> exportXlsx(List<ScanRecord> records) async {
+    final documents = await getApplicationDocumentsDirectory();
+    final dir = Directory('${documents.path}/exports');
+    if (!await dir.exists()) await dir.create(recursive: true);
+
+    final file = File('${dir.path}/pinepal_scans_${_fileStamp()}.xlsx');
+    await file.writeAsBytes(buildXlsxBytes(records));
+    return file;
+  }
+
+  static Future<File> export(List<ScanRecord> records, ExportFormat format) =>
+      format == ExportFormat.xlsx ? exportXlsx(records) : exportCsv(records);
+
   static Future<void> shareFile(File file) async {
+    final xlsx = file.path.endsWith('.xlsx');
     await SharePlus.instance.share(
       ShareParams(
-        files: [XFile(file.path, mimeType: 'text/csv')],
+        files: [
+          XFile(
+            file.path,
+            mimeType: xlsx
+                ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                : 'text/csv',
+          ),
+        ],
         subject: 'PinePal scans',
       ),
     );

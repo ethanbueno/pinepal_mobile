@@ -39,7 +39,7 @@ class ClassificationResult {
   Prediction? get second =>
       topPredictions.length > 1 ? topPredictions[1] : null;
 
-  // Below the threshold the app says "Not sure" and asks for a retake
+  // Below the threshold the app says "Not Sure" and asks for a retake
   bool get isLowConfidence => best.confidence < ClassifierService.minConfidence;
 }
 
@@ -58,7 +58,7 @@ class ClassifierService {
   static const String defaultModelFile = 'pinepal_model.tflite';
   static const String defaultLabelsFile = 'labels.txt';
 
-  // Below this disease confidence the app says "Not sure". Updated from the
+  // Below this disease confidence the app says "Not Sure". Updated from the
   // config when the model loads; the report screen reads it too.
   static double minConfidence = 0.60;
 

@@ -106,7 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     icon: const Icon(Icons.logout),
-                    label: const Text('Log out'),
+                    label: const Text('Log Out'),
                     onPressed: _auth.signOut,
                   ),
                 ),
@@ -152,7 +152,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Not signed in',
+                    'Not Signed In',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 2),
@@ -182,7 +182,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
             onPressed: _openLogin,
-            child: const Text('Sign in'),
+            child: const Text('Sign In'),
           ),
         ),
       ],
@@ -207,7 +207,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildFarm() {
     final hasFarm = _settings.farmName.isNotEmpty;
     return SectionCard(
-      title: 'My farm',
+      title: 'My Farm',
       action: TextButton(
         // compact, so the card title is as tall as in the other cards
         style: TextButton.styleFrom(
@@ -297,7 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   )
                 : const Icon(Icons.sync),
-            label: Text(_sync.syncing ? 'Syncing...' : 'Sync now'),
+            label: Text(_sync.syncing ? 'Syncing...' : 'Sync Now'),
             onPressed: !canSync
                 ? null
                 : signedIn

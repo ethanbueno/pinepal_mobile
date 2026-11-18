@@ -313,7 +313,7 @@ class _ScannerScreenState extends State<ScannerScreen>
           ),
           GlassButton(
             icon: _torchOn ? Icons.flashlight_on : Icons.flashlight_off,
-            tooltip: _torchOn ? 'Turn light off' : 'Turn light on',
+            tooltip: _torchOn ? 'Turn Light Off' : 'Turn Light On',
             active: _torchOn,
             onPressed: _cameraReady && _isBackCamera ? _toggleTorch : null,
           ),
@@ -426,7 +426,7 @@ class _ScannerScreenState extends State<ScannerScreen>
                 setState(() => _error = null);
                 _startCamera();
               },
-              child: const Text('Try again'),
+              child: const Text('Try Again'),
             ),
             const SizedBox(height: 4),
             Text(

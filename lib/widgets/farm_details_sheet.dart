@@ -57,7 +57,7 @@ class _FarmDetailsSheetState extends State<_FarmDetailsSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Farm details',
+              'Farm Details',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 4),
@@ -68,7 +68,7 @@ class _FarmDetailsSheetState extends State<_FarmDetailsSheet> {
             ),
             const SizedBox(height: 16),
             LabeledField(
-              label: 'Farm name',
+              label: 'Farm Name',
               hint: 'For example: Bueno Farm',
               controller: _farm,
               textInputAction: TextInputAction.done,

@@ -160,7 +160,7 @@ class _ShutterButtonState extends State<ShutterButton> {
     return Semantics(
       button: true,
       enabled: pressable,
-      label: 'Take photo',
+      label: 'Take Photo',
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: pressable ? (_) => setState(() => _down = true) : null,

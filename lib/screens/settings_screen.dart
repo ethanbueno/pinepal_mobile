@@ -290,7 +290,7 @@ class _DeveloperCardState extends State<_DeveloperCard> {
       title: 'Developer',
       children: [
         LabeledField(
-          label: 'Server address',
+          label: 'Server Address',
           hint: AppSettings.defaultServerUrl,
           controller: _server,
           focusNode: _focus,
@@ -320,7 +320,7 @@ class _DeveloperCardState extends State<_DeveloperCard> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.wifi_tethering),
-              label: const Text('Test connection'),
+              label: const Text('Test Connection'),
               onPressed: _testing ? null : _test,
             ),
             if (settings.usesCustomServer)
@@ -330,7 +330,7 @@ class _DeveloperCardState extends State<_DeveloperCard> {
               ),
             TextButton(
               onPressed: () => settings.setDeveloperOptions(false),
-              child: const Text('Hide developer options'),
+              child: const Text('Hide Developer Options'),
             ),
           ],
         ),

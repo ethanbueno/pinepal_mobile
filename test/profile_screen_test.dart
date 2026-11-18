@@ -93,12 +93,12 @@ void main() {
       settings: AppSettings(),
     );
 
-    expect(find.text('Not signed in'), findsOneWidget);
-    expect(find.widgetWithText(ElevatedButton, 'Sign in'), findsOneWidget);
-    expect(find.text('Log out'), findsNothing);
+    expect(find.text('Not Signed In'), findsOneWidget);
+    expect(find.widgetWithText(ElevatedButton, 'Sign In'), findsOneWidget);
+    expect(find.text('Log Out'), findsNothing);
 
     // Signing in (or creating an account) is how a signed-out phone syncs
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Sync now'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Sync Now'));
     await tester.pumpAndSettle();
     expect(find.text('Log into PinePal'), findsOneWidget);
     expect(find.text('New to PinePal? Create an account'), findsOneWidget);
@@ -158,7 +158,7 @@ void main() {
     );
 
     expect(find.text('Account'), findsNWidgets(2)); // the title and the card
-    expect(find.text('My farm'), findsNothing); // hidden for now
+    expect(find.text('My Farm'), findsNothing); // hidden for now
     expect(find.text('Sync'), findsOneWidget);
     expect(find.byTooltip('Settings'), findsOneWidget);
 
@@ -166,7 +166,7 @@ void main() {
     expect(find.text('Dark mode'), findsNothing);
     expect(find.byType(SegmentedButton<SyncMode>), findsNothing);
     expect(find.text('Wi-Fi only'), findsNothing);
-    expect(find.text('Server address'), findsNothing);
+    expect(find.text('Server Address'), findsNothing);
   });
 
   testWidgets(
@@ -177,12 +177,12 @@ void main() {
       expect(find.text('Juan Dela Cruz'), findsOneWidget);
       expect(find.text('@juan'), findsWidgets); // chip and Personal info
       expect(find.text('JD'), findsOneWidget);
-      expect(find.text('Personal info'), findsOneWidget);
-      expect(find.text('Edit account'), findsOneWidget);
+      expect(find.text('Personal Info'), findsOneWidget);
+      expect(find.text('Edit Account'), findsOneWidget);
       expect(find.text('View my profile'), findsNothing);
       expect(find.text('Sync'), findsOneWidget);
-      expect(find.text('Log out'), findsOneWidget);
-      expect(find.text('Not signed in'), findsNothing);
+      expect(find.text('Log Out'), findsOneWidget);
+      expect(find.text('Not Signed In'), findsNothing);
     },
   );
 
@@ -209,7 +209,7 @@ void main() {
 
     await tester.tap(find.text('Add'));
     await tester.pumpAndSettle();
-    expect(find.text('Farm details'), findsOneWidget);
+    expect(find.text('Farm Details'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField), 'Bueno Farm');
     // The municipality is locked to Echague, so Save works right away

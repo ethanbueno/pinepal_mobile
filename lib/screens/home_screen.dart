@@ -289,7 +289,7 @@ class _HomeTabState extends State<_HomeTab> {
                 Icon(Icons.insights_outlined, color: context.colors.accentText),
                 const SizedBox(width: AppSpacing.sm),
                 const Text(
-                  'My farm',
+                  'My Farm',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
               ],
@@ -299,7 +299,7 @@ class _HomeTabState extends State<_HomeTab> {
             const SizedBox(height: AppSpacing.section),
 
             const Text(
-              'Recent scans',
+              'Recent Scans',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -412,7 +412,7 @@ class _ScanHint extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Check a pineapple',
+                  'Check a Pineapple',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 2),
@@ -454,7 +454,7 @@ class _NoScansYet extends StatelessWidget {
           Icon(Icons.eco_outlined, size: 32, color: context.colors.textMuted),
           const SizedBox(height: AppSpacing.sm),
           const Text(
-            'No scans yet',
+            'No Scans Yet',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: AppSpacing.xs),

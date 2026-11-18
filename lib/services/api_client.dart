@@ -334,7 +334,7 @@ class ApiClient {
     }, token);
   }
 
-  // Used by "Test connection" in Settings
+  // Used by "Test Connection" in Settings
   Future<String> ping() async {
     final json = await _sendJson('GET', '/');
     return json['message']?.toString() ?? 'Connected';

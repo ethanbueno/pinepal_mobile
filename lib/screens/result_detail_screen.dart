@@ -133,7 +133,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                     ),
                     icon: const Icon(Icons.rate_review_outlined),
                     label: Text(
-                      _scan.hasFeedback ? 'Edit feedback' : 'Give feedback',
+                      _scan.hasFeedback ? 'Edit Feedback' : 'Give Feedback',
                     ),
                     onPressed: _openEditor,
                   ),
@@ -218,7 +218,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
     final inTown = isInLockedArea(scan.latitude, scan.longitude);
 
     return SectionCard(
-      title: 'Where it was scanned',
+      title: 'Where It Was Scanned',
       children: [
         if (!inTown)
           Text(
@@ -246,7 +246,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                       MaterialPageRoute(
                         builder: (_) => ScanHeatMapScreen(
                           scans: [spot],
-                          title: 'Where it was scanned',
+                          title: 'Where It Was Scanned',
                           focus: point,
                         ),
                       ),
@@ -398,7 +398,7 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
             ),
             SizedBox(height: 8),
             Text(
-              'Image unavailable',
+              'Image Unavailable',
               style: TextStyle(color: context.colors.textMuted),
             ),
           ],

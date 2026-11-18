@@ -152,7 +152,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   const AuthBrand(),
                   const SizedBox(height: AppSpacing.section),
                   const Text(
-                    'Create account',
+                    'Create Account',
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -164,10 +164,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.section),
-                  Text('Your details', style: groupLabel),
+                  Text('Your Details', style: groupLabel),
                   const SizedBox(height: AppSpacing.sm),
                   AuthField(
-                    label: 'Full name',
+                    label: 'Full Name',
                     controller: _fullName,
                     enabled: !_busy,
                     textInputAction: TextInputAction.next,
@@ -217,7 +217,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: AppSpacing.md),
                   AuthField(
-                    label: 'Confirm password',
+                    label: 'Confirm Password',
                     controller: _confirm,
                     enabled: !_busy,
                     obscure: !_showPassword,
@@ -232,7 +232,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ],
                   const SizedBox(height: AppSpacing.lg),
                   PillButton(
-                    text: 'Create account',
+                    text: 'Create Account',
                     busy: _busy,
                     onPressed: _busy ? null : _register,
                   ),

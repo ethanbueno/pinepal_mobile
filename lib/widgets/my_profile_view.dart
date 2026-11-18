@@ -32,12 +32,12 @@ class _Editable {
 }
 
 const _editable = [
-  _Editable('full_name', 'Full name'),
+  _Editable('full_name', 'Full Name'),
   _Editable('username', 'Username', secure: true),
   _Editable('email', 'Email', secure: true),
   _Editable('new_password', 'Password', secure: true),
-  _Editable('farm_name', 'Farm name', farmOnly: true),
-  _Editable('farm_size_ha', 'Farm size', farmOnly: true),
+  _Editable('farm_name', 'Farm Name', farmOnly: true),
+  _Editable('farm_size_ha', 'Farm Size', farmOnly: true),
 ];
 
 // The signed-in user's own details, from the server: the profile photo with
@@ -128,7 +128,7 @@ class _MyProfileViewState extends State<MyProfileView> {
 
   // The sheet behind the photo's camera button: camera, gallery or remove
   Future<void> _changePhoto() async {
-    const label = 'Profile photo';
+    const label = 'Profile photo'; // used in the messages below
     final hasPhoto = _profile!.avatarUrl != null;
     final colors = context.colors;
     final choice = await showModalBottomSheet<String>(
@@ -149,19 +149,19 @@ class _MyProfileViewState extends State<MyProfileView> {
               ),
               ListTile(
                 leading: const Icon(Icons.photo_camera_outlined),
-                title: const Text('Take a photo'),
+                title: const Text('Take a Photo'),
                 onTap: () => Navigator.pop(sheetContext, 'camera'),
               ),
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Choose from gallery'),
+                title: const Text('Choose from Gallery'),
                 onTap: () => Navigator.pop(sheetContext, 'gallery'),
               ),
               if (hasPhoto)
                 ListTile(
                   leading: Icon(Icons.delete_outline, color: colors.danger),
                   title: Text(
-                    'Remove photo',
+                    'Remove Photo',
                     style: TextStyle(color: colors.danger),
                   ),
                   onTap: () => Navigator.pop(sheetContext, 'remove'),
@@ -316,7 +316,7 @@ class _MyProfileViewState extends State<MyProfileView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Edit account',
+                    'Edit Account',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 4),
@@ -416,14 +416,14 @@ class _MyProfileViewState extends State<MyProfileView> {
             const SizedBox(height: 12),
             if (item.key == 'new_password') ...[
               _PasswordField(
-                label: 'New password',
+                label: 'New Password',
                 controller: _value,
                 enabled: !_saving,
                 autofocus: true,
               ),
               const SizedBox(height: 12),
               _PasswordField(
-                label: 'Confirm new password',
+                label: 'Confirm New Password',
                 controller: _confirm,
                 enabled: !_saving,
               ),
@@ -448,7 +448,7 @@ class _MyProfileViewState extends State<MyProfileView> {
             if (item.secure) ...[
               const SizedBox(height: 12),
               _PasswordField(
-                label: 'Current password',
+                label: 'Current Password',
                 hint: 'Needed to change your sign-in details',
                 controller: _current,
                 enabled: !_saving,
@@ -564,7 +564,7 @@ class _MyProfileViewState extends State<MyProfileView> {
           style: TextStyle(color: colors.textMuted, fontSize: 13),
         ),
         const SizedBox(height: 10),
-        OutlinedButton(onPressed: _load, child: const Text('Try again')),
+        OutlinedButton(onPressed: _load, child: const Text('Try Again')),
       ],
     );
   }
@@ -597,14 +597,14 @@ class _MyProfileViewState extends State<MyProfileView> {
                   Expanded(
                     child: _StatTile(
                       value: farm.sizeHa == null ? '–' : '${farm.sizeHa} ha',
-                      label: 'Farm size',
+                      label: 'Farm Size',
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: _StatTile(
                       value: farm.isActive ? 'Active' : 'Off',
-                      label: 'Farm status',
+                      label: 'Farm Status',
                     ),
                   ),
                 ],
@@ -621,7 +621,7 @@ class _MyProfileViewState extends State<MyProfileView> {
                 value: farm.farmName.isEmpty
                     ? 'No farm name yet'
                     : farm.farmName,
-                label: 'Farm name',
+                label: 'Farm Name',
               ),
               _InfoItem(
                 icon: Icons.tag,
@@ -634,7 +634,7 @@ class _MyProfileViewState extends State<MyProfileView> {
                     ? 'Not set yet'
                     : '${farm.latitude!.toStringAsFixed(5)}, '
                           '${farm.longitude!.toStringAsFixed(5)}',
-                label: 'Farm location',
+                label: 'Farm Location',
               ),
               _InfoItem(
                 icon: Icons.calendar_today_outlined,
@@ -661,7 +661,7 @@ class _MyProfileViewState extends State<MyProfileView> {
         ],
         const SizedBox(height: 12),
         SectionCard(
-          title: 'Personal info',
+          title: 'Personal Info',
           titleColor: colors.accentText,
           children: [
             ..._spaced([
@@ -865,7 +865,7 @@ class _MyProfileViewState extends State<MyProfileView> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    active ? 'Active account' : 'Deactivated account',
+                    active ? 'Active Account' : 'Deactivated Account',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -876,7 +876,7 @@ class _MyProfileViewState extends State<MyProfileView> {
                 ElevatedButton.icon(
                   onPressed: _openEdit,
                   icon: const Icon(Icons.edit_outlined, size: 18),
-                  label: const Text('Edit account'),
+                  label: const Text('Edit Account'),
                 ),
               ],
             ),

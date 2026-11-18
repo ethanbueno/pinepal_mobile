@@ -45,7 +45,7 @@ void main() {
 
     // Same section titles as the remediation guide on the website
     expect(find.text('Symptoms'), findsOneWidget);
-    expect(find.text('Immediate action'), findsOneWidget);
+    expect(find.text('Immediate Action'), findsOneWidget);
     expect(find.text('Prevention'), findsOneWidget);
 
     // Steps keep their numbers because the order matters

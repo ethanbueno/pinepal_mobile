@@ -147,7 +147,7 @@ class _EditScanScreenState extends State<EditScanScreen> {
     );
   }
 
-  // "What is it actually?" with a "Not sure" first option. The label the
+  // "What is it actually?" with a "Not Sure" first option. The label the
   // model predicted is left out, because that would be the other answer.
   Widget _actualPicker(List<String> labels) {
     return Padding(
@@ -176,7 +176,7 @@ class _EditScanScreenState extends State<EditScanScreen> {
                   DropdownMenuItem<String?>(
                     value: null,
                     child: Text(
-                      'Not sure',
+                      'Not Sure',
                       style: TextStyle(color: context.colors.textMuted),
                     ),
                   ),
@@ -233,7 +233,7 @@ class _EditScanScreenState extends State<EditScanScreen> {
                   ),
                 const SizedBox(height: 16),
                 _readOnlyRow(
-                  'Model predicted',
+                  'Model Predicted',
                   LabelService.pretty(scan.predictedLabel),
                 ),
                 _readOnlyRow(
@@ -287,12 +287,12 @@ class _EditScanScreenState extends State<EditScanScreen> {
                               _feedback = null;
                               _actual = null;
                             }),
-                      child: const Text('Clear my answer'),
+                      child: const Text('Clear My Answer'),
                     ),
                   ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Field notes',
+                  'Field Notes',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 12),
@@ -321,7 +321,7 @@ class _EditScanScreenState extends State<EditScanScreen> {
                             ),
                           )
                         : const Icon(Icons.save_outlined),
-                    label: Text(_saving ? 'Saving...' : 'Save feedback'),
+                    label: Text(_saving ? 'Saving...' : 'Save Feedback'),
                     onPressed: _saving ? null : _save,
                   ),
                 ),

@@ -23,25 +23,25 @@ class HelpScreen extends StatelessWidget {
     const steps = [
       _Point(
         Icons.camera_alt_outlined,
-        'Take a photo',
+        'Take a Photo',
         'Tap the camera button and point it at the fruit, or pick a photo '
             'from your gallery.',
       ),
       _Point(
         Icons.document_scanner_outlined,
-        'Get a diagnosis',
+        'Get a Diagnosis',
         'The app checks the photo right on your phone, even without internet, '
             'and names the disease with a confidence score.',
       ),
       _Point(
         Icons.assignment_outlined,
-        'Follow the treatment',
+        'Follow the Treatment',
         'Every result comes with step-by-step treatment and prevention advice '
             'for that disease. All guides are in the Guide tab.',
       ),
       _Point(
         Icons.map_outlined,
-        'Track your farm',
+        'Track Your Farm',
         'Your scans sync to your account once you are online. Agricultural '
             'officers use them to spot outbreaks early.',
       ),
@@ -50,13 +50,13 @@ class HelpScreen extends StatelessWidget {
     final goodToKnow = [
       const _Point(
         Icons.wb_sunny_outlined,
-        'Getting a good photo',
+        'Getting a Good Photo',
         'Use daylight, keep the whole fruit in the frame, and hold the phone '
             'steady. One fruit per photo.',
       ),
       _Point(
         Icons.speed_outlined,
-        'What the confidence score means',
+        'What the Confidence Score Means',
         '${_pct(highConfidence)} or more: the app is sure. ${_pct(low)} to '
             '${_pct(highConfidence)}: likely right. Below ${_pct(low)}: '
             'unsure, so take another photo. An agricultural officer can '
@@ -64,13 +64,13 @@ class HelpScreen extends StatelessWidget {
       ),
       const _Point(
         Icons.wifi_off_outlined,
-        'No signal in the field?',
+        'No Signal in the Field?',
         'Scanning works offline. Results wait on your phone and upload by '
             'themselves the next time you are online (see Sync in Settings).',
       ),
       const _Point(
         Icons.verified_outlined,
-        'Officer checks',
+        'Officer Checks',
         'An agricultural officer may check a synced scan and confirm or '
             'correct it. History shows "Checked by officer" or "Corrected by '
             'officer", and the scan\'s report says who checked it and when.',
@@ -83,7 +83,7 @@ class HelpScreen extends StatelessWidget {
       ),
       const _Point(
         Icons.shield_outlined,
-        'Who sees your scans',
+        'Who Sees Your Scans',
         "Only you and PinePal's agricultural officers and admins.",
       ),
     ];
@@ -94,7 +94,7 @@ class HelpScreen extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.page),
         children: [
           SectionCard(
-            title: 'How it works',
+            title: 'How It Works',
             children: [
               for (var i = 0; i < steps.length; i++)
                 _PointRow(point: steps[i], number: i + 1),
@@ -102,7 +102,7 @@ class HelpScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.md),
           SectionCard(
-            title: 'Good to know',
+            title: 'Good to Know',
             children: [for (final point in goodToKnow) _PointRow(point: point)],
           ),
           const SizedBox(height: AppSpacing.lg),

@@ -222,7 +222,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
   List<Widget> _buildBeforeAnalysis() {
     return [
       const Text(
-        'Photo ready',
+        'Photo Ready',
         style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
       ),
       const SizedBox(height: 4),
@@ -299,7 +299,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
               ? Icons.photo_library_outlined
               : Icons.camera_alt_outlined,
         ),
-        label: Text(fromGallery ? 'Choose another photo' : 'Retake photo'),
+        label: Text(fromGallery ? 'Choose Another Photo' : 'Retake Photo'),
         // Camera: back to the live camera. Gallery: the scanner reopens the gallery.
         onPressed: () => Navigator.pop(
           context,
@@ -377,7 +377,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
           icon: const Icon(Icons.description_outlined),
-          label: const Text('View full report'),
+          label: const Text('View Full Report'),
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(
@@ -392,7 +392,7 @@ class _PhotoPreviewScreenState extends State<PhotoPreviewScreen> {
           padding: const EdgeInsets.symmetric(vertical: 14),
         ),
         onPressed: () => Navigator.pop(context),
-        child: const Text('Scan another'),
+        child: const Text('Scan Another'),
       ),
     ];
   }

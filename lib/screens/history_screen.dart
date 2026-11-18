@@ -133,7 +133,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _deleteScan(ScanRecord scan) async {
     final ok = await _confirm(
-      'Delete this scan?',
+      'Delete This Scan?',
       'Are you sure you want to delete this '
           '${LabelService.pretty(scan.predictedLabel)} scan? Its record and '
           'photo will be removed permanently.',
@@ -208,18 +208,117 @@ class _HistoryScreenState extends State<HistoryScreen> {
     setState(() => _filter = _filter.withDates(picked.start, picked.end));
   }
 
-  Future<void> _exportCsv() async {
+  // Export: what History is showing (its source, condition and date filters),
+  // optionally only officer-verified scans, as CSV or Excel. Like the
+  // website's Export page. The file goes to the share sheet.
+  Future<void> _openExport(List<ScanRecord> all) async {
     if (_exporting) return;
-
-    final records = await DatabaseHelper.instance.getAllScans();
-    if (records.isEmpty) {
-      _showMessage('Nothing to export yet.');
+    final filtered = _filter.apply(all);
+    if (filtered.isEmpty) {
+      _showMessage('Nothing to export with these filters.');
       return;
     }
 
+    var verifiedOnly = false;
+    var format = ExportFormat.csv;
+    final from = _filter.from;
+    final to = _filter.to;
+    final summary = [
+      switch (_filter.source) {
+        HistorySource.all => 'All Scans',
+        HistorySource.phone => 'On This Phone',
+        HistorySource.online => 'Online',
+      },
+      _filter.label == null
+          ? 'every condition'
+          : LabelService.pretty(_filter.label!),
+      from == null || to == null
+          ? 'any date'
+          : (from == to
+                ? formatDate(from)
+                : '${formatDate(from)} – ${formatDate(to)}'),
+    ].join(' · ');
+
+    final picked = await showModalBottomSheet<(List<ScanRecord>, ExportFormat)>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheet) {
+          final records = verifiedOnly
+              ? filtered.where((s) => s.isOfficerVerified).toList()
+              : filtered;
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page,
+                0,
+                AppSpacing.page,
+                AppSpacing.page,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Export Scans',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Uses the filters on History: $summary',
+                    style: TextStyle(
+                      color: sheetContext.colors.textMuted,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Verified by an Officer Only'),
+                    value: verifiedOnly,
+                    onChanged: (v) => setSheet(() => verifiedOnly = v),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  SegmentedButton<ExportFormat>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(
+                        value: ExportFormat.csv,
+                        label: Text('CSV'),
+                      ),
+                      ButtonSegment(
+                        value: ExportFormat.xlsx,
+                        label: Text('Excel (XLSX)'),
+                      ),
+                    ],
+                    selected: {format},
+                    onSelectionChanged: (v) => setSheet(() => format = v.first),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                  FilledButton.icon(
+                    onPressed: records.isEmpty
+                        ? null
+                        : () => Navigator.pop(sheetContext, (records, format)),
+                    icon: const Icon(Icons.ios_share),
+                    label: Text(
+                      records.isEmpty
+                          ? 'No Scans to Export'
+                          : 'Export ${records.length} '
+                                '${records.length == 1 ? 'scan' : 'scans'}',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    if (picked == null || !mounted) return;
+
     setState(() => _exporting = true);
     try {
-      final file = await ExportService.exportCsv(records);
+      final file = await ExportService.export(picked.$1, picked.$2);
       await ExportService.shareFile(file);
     } catch (e) {
       _showMessage('Export failed: $e');
@@ -347,9 +446,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 )
               else
                 IconButton(
-                  tooltip: 'Export to CSV',
+                  tooltip: 'Export (CSV or Excel)',
                   icon: const Icon(Icons.ios_share),
-                  onPressed: _exportCsv,
+                  onPressed: () => _openExport(all),
                 ),
               if (phoneScans.isNotEmpty)
                 IconButton(
@@ -439,7 +538,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ButtonSegment(
                   value: HistorySource.phone,
                   icon: Icon(Icons.phone_android),
-                  label: Text('On this phone'),
+                  label: Text('On This Phone'),
                 ),
                 ButtonSegment(
                   value: HistorySource.online,
@@ -453,7 +552,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
           IconButton(
-            tooltip: oldest ? 'Oldest first' : 'Newest first',
+            tooltip: oldest ? 'Oldest First' : 'Newest First',
             icon: Icon(oldest ? Icons.north : Icons.south),
             onPressed: () =>
                 setState(() => _filter = _filter.withOldestFirst(!oldest)),
@@ -534,7 +633,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         children: [
           EmptyState(
             icon: Icons.error_outline,
-            title: 'Could not load scans',
+            title: 'Could Not Load Scans',
             text: '${snapshot.error}',
             action: OutlinedButton(
               onPressed: _reload,
@@ -555,17 +654,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
             if (all.isEmpty)
               const EmptyState(
                 icon: Icons.history,
-                title: 'No scans yet',
+                title: 'No Scans Yet',
                 text: 'Scans you take with the camera button are saved here.',
               )
             else
               EmptyState(
                 icon: Icons.filter_alt_off_outlined,
-                title: 'No scans match',
+                title: 'No Scans Match',
                 text: 'Try another source, condition or date.',
                 action: OutlinedButton(
                   onPressed: () => setState(() => _filter = _filter.cleared()),
-                  child: const Text('Clear filters'),
+                  child: const Text('Clear Filters'),
                 ),
               ),
           ],
@@ -658,7 +757,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    tooltip: 'Verify or edit',
+                    tooltip: 'Verify or Edit',
                     icon: const Icon(Icons.edit_outlined),
                     onPressed: () => _openEditor(scan),
                   ),

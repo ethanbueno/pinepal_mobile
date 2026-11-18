@@ -98,7 +98,7 @@ class WelcomeScreen extends StatelessWidget {
               child: Column(
                 children: [
                   IntroButton(
-                    label: 'Sign in',
+                    label: 'Sign In',
                     onPressed: () => _open(context, const LoginScreen()),
                   ),
                   const SizedBox(height: 24),

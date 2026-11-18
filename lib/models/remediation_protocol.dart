@@ -31,7 +31,7 @@ class GuideSource {
   }
 }
 
-// Who took one of the guide photos, shown under "Photo credits"
+// Who took one of the guide photos, shown under "Photo Credits"
 class PhotoCredit {
   // File name of the photo, like "crown_rot_2.jpg"
   final String file;

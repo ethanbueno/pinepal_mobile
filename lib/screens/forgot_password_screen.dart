@@ -224,7 +224,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   List<Widget> _emailStep() {
     return [
       _title(
-        'Forgot your password?',
+        'Forgot Your Password?',
         'Enter the email address of your PinePal account.',
       ),
       AuthField(
@@ -239,7 +239,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       const SizedBox(height: AppSpacing.md),
       TextButton(
         onPressed: _busy ? null : () => Navigator.pop(context),
-        child: const Text('Back to log in'),
+        child: const Text('Back to Log In'),
       ),
     ];
   }
@@ -253,7 +253,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         : 'Choose a new password for @${start.username}.';
 
     return [
-      _title('New password', intro),
+      _title('New Password', intro),
       if (start.emailedCode) ...[
         AuthField(
           label: '6-digit code',
@@ -265,7 +265,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: AppSpacing.md),
       ],
       AuthField(
-        label: 'New password',
+        label: 'New Password',
         controller: _password,
         enabled: !_busy,
         obscure: !_showPassword,
@@ -282,7 +282,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       ),
       const SizedBox(height: AppSpacing.md),
       AuthField(
-        label: 'Confirm new password',
+        label: 'Confirm New Password',
         controller: _confirm,
         enabled: !_busy,
         obscure: !_showPassword,
@@ -290,7 +290,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         onSubmitted: (_) => _setPassword(),
       ),
       PasswordChecklist(password: _password, confirm: _confirm),
-      ..._errorAndButton('Change password', _setPassword),
+      ..._errorAndButton('Change Password', _setPassword),
       const SizedBox(height: AppSpacing.md),
       if (start.emailedCode)
         TextButton(
@@ -298,12 +298,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           child: Text(
             _resendIn > 0
                 ? 'Send a new code in ${_resendIn}s'
-                : 'Send a new code',
+                : 'Send a New Code',
           ),
         ),
       TextButton(
         onPressed: _busy ? null : _changeEmail,
-        child: const Text('Use another email'),
+        child: const Text('Use Another Email'),
       ),
     ];
   }

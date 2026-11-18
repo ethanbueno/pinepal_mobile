@@ -153,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: AppSpacing.section),
                   AuthField(
-                    label: 'Username or email',
+                    label: 'Username or Email',
                     controller: _username,
                     enabled: !_busy,
                     keyboardType: TextInputType.emailAddress,
@@ -184,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: _busy ? null : _openForgotPassword,
-                      child: const Text('Forgot password?'),
+                      child: const Text('Forgot Password?'),
                     ),
                   ),
                   if (_error != null) ...[
@@ -193,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                   const SizedBox(height: AppSpacing.md),
                   PillButton(
-                    text: 'Log in',
+                    text: 'Log In',
                     busy: _busy,
                     onPressed: _busy ? null : _signIn,
                   ),

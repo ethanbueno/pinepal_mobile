@@ -729,14 +729,14 @@ bool _isHealthy(RemediationProtocol p) => p.checks.isNotEmpty;
 
 Widget _checksCard(RemediationProtocol p) => GuideSection(
   icon: Icons.fact_check_outlined,
-  title: 'Check the plant yourself',
+  title: 'Check the Plant Yourself',
   highlight: true,
   children: [_bullets(p.checks)],
 );
 
 Widget _lookAlikesCard(RemediationProtocol p) => GuideSection(
   icon: Icons.compare_arrows,
-  title: 'Could also be',
+  title: 'Could Also Be',
   children: [_bullets(p.lookAlikes)],
 );
 
@@ -769,8 +769,8 @@ class PathogenCard extends StatelessWidget {
   }
 }
 
-// "What to do": the numbered steps in an amber card, then prevention.
-// Then "Help and sources". The healthy guide shows Could also be and the
+// "What to Do": the numbered steps in an amber card, then prevention.
+// Then "Help and Sources". The healthy guide shows Could also be and the
 // scanning tips instead.
 class RemediationCard extends StatelessWidget {
   final RemediationProtocol protocol;
@@ -781,18 +781,18 @@ class RemediationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = protocol;
     final healthy = _isHealthy(p);
-    final act = _stack(healthy ? 'Keep watching' : 'What to do', [
+    final act = _stack(healthy ? 'Keep Watching' : 'What to Do', [
       if (healthy && p.lookAlikes.isNotEmpty) _lookAlikesCard(p),
       if (p.scanTips.isNotEmpty)
         GuideSection(
           icon: Icons.photo_camera_outlined,
-          title: 'Scanning tips',
+          title: 'Scanning Tips',
           children: [_bullets(p.scanTips)],
         ),
       if (p.remediationSteps.isNotEmpty)
         GuideSection(
           icon: Icons.healing_outlined,
-          title: 'Immediate action',
+          title: 'Immediate Action',
           highlight: true,
           children: [
             for (var i = 0; i < p.remediationSteps.length; i++)
@@ -806,11 +806,11 @@ class RemediationCard extends StatelessWidget {
           children: [_bullets(p.preventiveMeasures)],
         ),
     ]);
-    final help = _stack('Help and sources', [
+    final help = _stack('Help and Sources', [
       if (p.getHelp.isNotEmpty)
         GuideSection(
           icon: Icons.support_agent_outlined,
-          title: 'Get help',
+          title: 'Get Help',
           children: [_bullets(p.getHelp)],
         ),
       if (p.sources.isNotEmpty)
@@ -818,7 +818,7 @@ class RemediationCard extends StatelessWidget {
       else if (p.photoCredits.isNotEmpty)
         GuideSection(
           icon: Icons.photo_camera_outlined,
-          title: 'Photo credits',
+          title: 'Photo Credits',
           children: [PhotoCreditList(credits: p.photoCredits)],
         ),
     ]);
@@ -899,7 +899,7 @@ class _SourcesCardState extends State<SourcesCard> {
             onPressed: () => setState(() => _showAll = !_showAll),
             icon: Icon(_showAll ? Icons.expand_less : Icons.expand_more),
             label: Text(
-              _showAll ? 'Show fewer' : 'Show all ${all.length} sources',
+              _showAll ? 'Show Fewer' : 'Show all ${all.length} sources',
             ),
           ),
         const SizedBox(height: AppSpacing.xs),
@@ -912,7 +912,7 @@ class _SourcesCardState extends State<SourcesCard> {
         if (widget.protocol.photoCredits.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.md),
           Text(
-            'Photo credits',
+            'Photo Credits',
             style: TextStyle(
               color: muted,
               fontSize: 12,

@@ -5,7 +5,7 @@ import '../utils/municipalities.dart';
 
 // How scans are sent to the server
 enum SyncMode {
-  manual, // only when the farmer taps "Sync now"
+  manual, // only when the farmer taps "Sync Now"
   automatic, // by itself when there is a connection
 }
 
