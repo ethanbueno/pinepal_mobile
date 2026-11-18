@@ -6,12 +6,14 @@ import '../models/dashboard_stats.dart';
 import '../services/label_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/map_area.dart';
+import 'density_heat_layer.dart';
 import 'disease_badge.dart';
 
-// Heat map of the places where the farmer scanned. Every scan adds a soft
-// circle in the color of its condition, so places with many scans glow
-// stronger. A dot sits on each place, with a number when several scans were
-// taken at the same spot.
+// Heat map of the places where the farmer scanned: a real density heat map,
+// the same as the website's (density_heat_layer.dart). Diseased scans add up
+// into heat from blue (few) to red (many); healthy scans only count when every
+// scan is healthy. A dot in the color of the latest condition sits on each
+// place, with a number when several scans were taken at the same spot.
 //
 // The map is locked to Echague, like the maps on the website (see
 // lib/utils/map_area.dart). Scans taken outside it are left off the map.
@@ -43,10 +45,6 @@ class ScanHeatMap extends StatefulWidget {
 }
 
 class _ScanHeatMapState extends State<ScanHeatMap> {
-  // Heat circle sizes in meters: a wide faint one and a smaller stronger one
-  static const _outerRadius = 120.0;
-  static const _innerRadius = 45.0;
-
   // Set when a map tile could not be downloaded (no internet), so the map
   // can say why the background is empty
   bool _tilesFailed = false;
@@ -64,6 +62,13 @@ class _ScanHeatMapState extends State<ScanHeatMap> {
     final interactive = widget.interactive;
     final height = widget.height;
     final spots = _groupBySpot(scans);
+    // like the web: the heat is about disease, so healthy scans only count
+    // when there is nothing else
+    final diseased = scans.where((s) => s.label != 'No_Disease').toList();
+    final heatPoints = [
+      for (final s in diseased.isEmpty ? scans : diseased)
+        LatLng(s.latitude, s.longitude),
+    ];
 
     // The size is needed to know how far out the map may zoom: no further
     // than the whole of Echague, like on the website
@@ -110,14 +115,7 @@ class _ScanHeatMapState extends State<ScanHeatMap> {
               ),
             ],
           ),
-          CircleLayer(
-            circles: [
-              for (final scan in scans) ...[
-                _heatCircle(context, scan, _outerRadius, 0.12),
-                _heatCircle(context, scan, _innerRadius, 0.22),
-              ],
-            ],
-          ),
+          DensityHeatLayer(points: heatPoints),
           MarkerLayer(
             markers: [
               for (final spot in spots)
@@ -183,21 +181,6 @@ class _ScanHeatMapState extends State<ScanHeatMap> {
       child: height == null
           ? mapWithNotice
           : SizedBox(height: height, child: mapWithNotice),
-    );
-  }
-
-  CircleMarker _heatCircle(
-    BuildContext context,
-    DashboardScan scan,
-    double radius,
-    double strength,
-  ) {
-    final color = diseaseColors[scan.label] ?? context.colors.textMuted;
-    return CircleMarker(
-      point: LatLng(scan.latitude, scan.longitude),
-      radius: radius,
-      useRadiusInMeter: true,
-      color: color.withValues(alpha: strength),
     );
   }
 }
