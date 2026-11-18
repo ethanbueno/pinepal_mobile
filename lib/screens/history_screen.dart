@@ -362,6 +362,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           body: Column(
             children: [
               _buildSummaryBar(all),
+              if (all.isNotEmpty) _buildSourceBar(),
               if (all.isNotEmpty) _buildFilterBar(),
               Expanded(child: _buildBody(snapshot, all)),
             ],
@@ -412,6 +413,51 @@ class _HistoryScreenState extends State<HistoryScreen> {
           stat('$checked', 'checked'),
           stat(accuracy, 'accuracy'),
           stat('$officer', 'by officer'),
+        ],
+      ),
+    );
+  }
+
+  // Where the scans are (all, this phone, online), like the Home switch, and
+  // the order (newest or oldest first).
+  Widget _buildSourceBar() {
+    final oldest = _filter.oldestFirst;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.page,
+        AppSpacing.md,
+        AppSpacing.sm,
+        0,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: SegmentedButton<HistorySource>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: HistorySource.all, label: Text('All')),
+                ButtonSegment(
+                  value: HistorySource.phone,
+                  icon: Icon(Icons.phone_android),
+                  label: Text('On this phone'),
+                ),
+                ButtonSegment(
+                  value: HistorySource.online,
+                  icon: Icon(Icons.cloud_outlined),
+                  label: Text('Online'),
+                ),
+              ],
+              selected: {_filter.source},
+              onSelectionChanged: (picked) =>
+                  setState(() => _filter = _filter.withSource(picked.first)),
+            ),
+          ),
+          IconButton(
+            tooltip: oldest ? 'Oldest first' : 'Newest first',
+            icon: Icon(oldest ? Icons.north : Icons.south),
+            onPressed: () =>
+                setState(() => _filter = _filter.withOldestFirst(!oldest)),
+          ),
         ],
       ),
     );
@@ -516,10 +562,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
               EmptyState(
                 icon: Icons.filter_alt_off_outlined,
                 title: 'No scans match',
-                text: 'Try another condition or date.',
+                text: 'Try another source, condition or date.',
                 action: OutlinedButton(
-                  onPressed: () =>
-                      setState(() => _filter = const HistoryFilter()),
+                  onPressed: () => setState(() => _filter = _filter.cleared()),
                   child: const Text('Clear filters'),
                 ),
               ),

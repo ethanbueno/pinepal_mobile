@@ -3,7 +3,12 @@ import 'package:pinepal_mobile/models/history_list.dart';
 import 'package:pinepal_mobile/models/scan_record.dart';
 import 'package:pinepal_mobile/models/server_scan.dart';
 
-ScanRecord phoneScan(String uuid, DateTime at, {String label = 'Crown_Rot'}) {
+ScanRecord phoneScan(
+  String uuid,
+  DateTime at, {
+  String label = 'Crown_Rot',
+  bool synced = true,
+}) {
   return ScanRecord(
     scanUuid: uuid,
     predictedLabel: label,
@@ -13,7 +18,7 @@ ScanRecord phoneScan(String uuid, DateTime at, {String label = 'Crown_Rot'}) {
     latitude: 16.7,
     longitude: 121.6,
     scannedAt: at,
-    synced: true,
+    synced: synced,
   );
 }
 
@@ -144,6 +149,47 @@ void main() {
         hasLength(1),
       );
       expect(const HistoryFilter(label: 'Crown_Rot').apply(merged), isEmpty);
+    });
+  });
+
+  group('HistoryFilter source and order', () {
+    // a: synced phone scan, b: phone scan not synced yet, c: only on the server
+    List<ScanRecord> scans() => mergeHistory(
+      [
+        phoneScan('a', DateTime(2026, 11, 3)),
+        phoneScan('b', DateTime(2026, 11, 2), synced: false),
+      ],
+      [
+        serverScan('a', DateTime(2026, 11, 3)),
+        serverScan('c', DateTime(2026, 11, 1)),
+      ],
+    );
+
+    test('on this phone: synced or not', () {
+      final list = const HistoryFilter(
+        source: HistorySource.phone,
+      ).apply(scans());
+      expect(list.map((s) => s.scanUuid), ['a', 'b']);
+    });
+
+    test('online: synced and server-only, not pending', () {
+      final list = const HistoryFilter(
+        source: HistorySource.online,
+      ).apply(scans());
+      expect(list.map((s) => s.scanUuid), ['a', 'c']);
+    });
+
+    test('oldest first reverses the list, clearing keeps the order', () {
+      const filter = HistoryFilter(
+        oldestFirst: true,
+        source: HistorySource.phone,
+      );
+      expect(filter.apply(scans()).map((s) => s.scanUuid), ['b', 'a']);
+      expect(filter.cleared().apply(scans()).map((s) => s.scanUuid), [
+        'c',
+        'b',
+        'a',
+      ]);
     });
   });
 
