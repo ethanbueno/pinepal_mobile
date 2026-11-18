@@ -8,7 +8,6 @@ import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pinepal_loader.dart';
 import '../widgets/scanner_controls.dart';
-import 'history_screen.dart';
 import 'photo_preview_screen.dart';
 
 class ScannerScreen extends StatefulWidget {
@@ -318,14 +317,6 @@ class _ScannerScreenState extends State<ScannerScreen>
             active: _torchOn,
             onPressed: _cameraReady && _isBackCamera ? _toggleTorch : null,
           ),
-          if (_cameras.length > 1) ...[
-            const SizedBox(width: 8),
-            GlassButton(
-              icon: Icons.cameraswitch_outlined,
-              tooltip: 'Flip camera',
-              onPressed: _cameraReady && !_busy ? _flipCamera : null,
-            ),
-          ],
         ],
       ),
     );
@@ -449,7 +440,7 @@ class _ScannerScreenState extends State<ScannerScreen>
     );
   }
 
-  // Gallery and history on the sides, the shutter exactly in the middle
+  // Gallery and flip camera on the sides, the shutter exactly in the middle
   Widget _buildControls() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
@@ -470,11 +461,14 @@ class _ScannerScreenState extends State<ScannerScreen>
           ),
           Expanded(
             child: Center(
-              child: GlassAction(
-                icon: Icons.history,
-                label: 'History',
-                onPressed: () => _openPage(const HistoryScreen()),
-              ),
+              // empty with a single camera, so the shutter stays centred
+              child: _cameras.length > 1
+                  ? GlassAction(
+                      icon: Icons.cameraswitch_outlined,
+                      label: 'Flip',
+                      onPressed: _cameraReady && !_busy ? _flipCamera : null,
+                    )
+                  : null,
             ),
           ),
         ],
