@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../models/dashboard_stats.dart';
 import '../services/api_client.dart';
 import '../services/auth_controller.dart';
-import '../services/dashboard_cache.dart';
 import '../services/database_helper.dart';
+import '../services/server_scans.dart';
 import '../services/label_service.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
@@ -48,8 +48,7 @@ class _DashboardData {
 }
 
 class _FarmDashboardState extends State<FarmDashboard> {
-  late final _api = widget.api ?? ApiClient();
-  late final _auth = widget.auth ?? AuthController.instance;
+  late final _server = ServerScans(api: widget.api, auth: widget.auth);
 
   DashboardSource _source = DashboardSource.phone;
   late Future<_DashboardData> _data = _load();
@@ -61,33 +60,8 @@ class _FarmDashboardState extends State<FarmDashboard> {
   }
 
   Future<List<DashboardScan>> _onlineScans() async {
-    // Signed in: the account's scans. Signed out: this phone's own farmer ID,
-    // which only exists after the first sync.
-    final token = _auth.token ?? _auth.phoneFarmer?.token;
-    if (token == null) {
-      throw const ApiException(
-        'Nothing from this phone is on the server yet. Sync your scans or '
-        'sign in to see them here.',
-      );
-    }
-    try {
-      return await _api.getMyScans(token: token);
-    } on ApiException catch (e) {
-      if (e.unauthorized) {
-        throw const ApiException(
-          'Sign in again to see your scans on the server.',
-        );
-      }
-      rethrow;
-    }
-  }
-
-  // Who the saved Online copy belongs to: the account, or this phone's farmer ID
-  String? get _cacheOwner {
-    final user = _auth.user;
-    if (user != null) return 'user_${user.id}';
-    final phone = _auth.phoneFarmer;
-    return phone == null ? null : 'phone_${phone.farmerId}';
+    final scans = await _server.fetch();
+    return scans.map(DashboardScan.fromServer).toList();
   }
 
   Future<_DashboardData> _load() async {
@@ -98,28 +72,24 @@ class _FarmDashboardState extends State<FarmDashboard> {
 
     // Online: show the saved copy right away when there is one, and fetch the
     // fresh numbers in the background (stale-while-revalidate)
-    final owner = _cacheOwner;
-    final saved = owner == null ? null : await DashboardCache.load(owner);
+    final saved = await _server.saved();
     if (saved != null) {
-      _refreshOnline(owner!, labels);
+      _refreshOnline(labels);
       return _DashboardData(
-        DashboardStats(saved.scans),
+        DashboardStats(saved.scans.map(DashboardScan.fromServer).toList()),
         labels,
         savedAt: saved.savedAt,
       );
     }
-    final scans = await _onlineScans();
-    if (owner != null) await DashboardCache.save(owner, scans);
-    return _DashboardData(DashboardStats(scans), labels);
+    return _DashboardData(DashboardStats(await _onlineScans()), labels);
   }
 
   // The background half of _load: swap in the server's numbers once they
   // arrive. If the server cannot be reached the saved copy stays on screen,
   // with its date under the toggle.
-  Future<void> _refreshOnline(String owner, List<String> labels) async {
+  Future<void> _refreshOnline(List<String> labels) async {
     try {
       final scans = await _onlineScans();
-      await DashboardCache.save(owner, scans);
       if (!mounted || _source != DashboardSource.online) return;
       setState(() {
         _data = Future.value(_DashboardData(DashboardStats(scans), labels));

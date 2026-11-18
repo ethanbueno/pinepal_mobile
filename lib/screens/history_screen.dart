@@ -2,10 +2,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../models/history_list.dart';
 import '../models/scan_record.dart';
+import '../models/server_scan.dart';
 import '../services/database_helper.dart';
 import '../services/export_service.dart';
 import '../services/label_service.dart';
+import '../services/server_scans.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/tile_card.dart';
@@ -17,25 +20,42 @@ import 'edit_scan_screen.dart';
 import 'result_detail_screen.dart';
 import '../widgets/pinepal_loader.dart';
 
-// List of saved scans. Tap a scan for the full report, verify it, delete it,
-// clear the whole history, or export everything to CSV.
+// List of the farmer's scans: this phone's, plus the ones taken on the web or
+// another phone (from the server, once it has been reached). Shows the
+// officer's check on each, and can be filtered by condition and date. Tap a
+// scan for the full report; this phone's scans can also be given feedback,
+// deleted, cleared or exported to CSV.
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  const HistoryScreen({super.key, this.server});
+
+  // Leave empty to use the shared one (tests pass their own)
+  final ServerScans? server;
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  late Future<List<ScanRecord>> _scans;
+  late final _server = widget.server ?? ServerScans();
+
+  late Future<List<ScanRecord>> _phoneScans;
+  // The server's copy: the saved one first, then the fresh one. Empty when
+  // there is nobody to ask for or it was never reached.
+  List<ServerScan> _serverScans = const [];
   Map<String, int> _summary = const {'total': 0, 'checked': 0, 'correct': 0};
+  List<String> _labels = const [];
+  HistoryFilter _filter = const HistoryFilter();
   bool _exporting = false;
 
   @override
   void initState() {
     super.initState();
-    _scans = DatabaseHelper.instance.getAllScans();
+    _phoneScans = DatabaseHelper.instance.getAllScans();
     _loadSummary();
+    _loadServer();
+    LabelService.load().then((labels) {
+      if (mounted) setState(() => _labels = labels);
+    }, onError: (_) {});
   }
 
   Future<void> _loadSummary() async {
@@ -43,12 +63,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (mounted) setState(() => _summary = summary);
   }
 
+  // The saved copy right away, then the server's (stale-while-revalidate).
+  // Offline or signed out, the saved copy (or nothing) stays.
+  Future<void> _loadServer() async {
+    final saved = await _server.saved();
+    if (saved != null && mounted) {
+      setState(() => _serverScans = saved.scans);
+    }
+    try {
+      final fresh = await _server.fetch();
+      if (mounted) setState(() => _serverScans = fresh);
+    } catch (_) {
+      // keep what is shown
+    }
+  }
+
   void _reload() {
     setState(() {
-      _scans = DatabaseHelper.instance.getAllScans();
+      _phoneScans = DatabaseHelper.instance.getAllScans();
     });
     _loadSummary();
     SyncController.instance.onLocalChange();
+  }
+
+  Future<void> _refresh() async {
+    _reload();
+    await Future.wait([_phoneScans, _loadServer()]);
   }
 
   void _showMessage(String text) {
@@ -114,9 +154,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> _clearHistory(List<ScanRecord> scans) async {
     final ok = await _confirm(
-      'Clear all history?',
-      'Are you sure you want to delete all ${scans.length} scans? They and '
-          'their photos will be removed permanently.',
+      "Clear this phone's history?",
+      'Are you sure you want to delete all ${scans.length} scans on this '
+          'phone? They and their photos will be removed from the phone '
+          'permanently. Scans that were already synced stay on the server.',
     );
     if (!ok) return;
 
@@ -150,6 +191,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (!mounted) return;
     _reload();
     if (saved == true) _showMessage('Scan updated.');
+  }
+
+  Future<void> _pickDates() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(now.year, now.month, now.day),
+      initialDateRange: _filter.from == null || _filter.to == null
+          ? null
+          : DateTimeRange(start: _filter.from!, end: _filter.to!),
+      helpText: 'Show scans from',
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _filter = _filter.withDates(picked.start, picked.end));
   }
 
   Future<void> _exportCsv() async {
@@ -203,12 +259,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // Synced (green) or Pending (grey)
-  Widget _statusChip(bool synced) {
+  // Synced (green) or Pending (grey), or for a scan that is only on the
+  // server, where it was taken
+  Widget _statusChip(ScanRecord scan) {
+    if (!scan.onPhone) {
+      final web = scan.imageSource == 'Web';
+      return _chip(
+        web ? 'From the web' : 'From another phone',
+        context.colors.textMuted,
+        icon: web ? Icons.language : Icons.smartphone_outlined,
+      );
+    }
     return _chip(
-      synced ? 'Synced' : 'Pending',
-      synced ? context.colors.success : context.colors.textMuted,
+      scan.synced ? 'Synced' : 'Pending',
+      scan.synced ? context.colors.success : context.colors.textMuted,
     );
+  }
+
+  // Checked or corrected by an agricultural officer on the web dashboard
+  Widget? _officerChip(ScanRecord scan) {
+    if (!scan.isOfficerVerified) return null;
+    return scan.isOfficerCorrected
+        ? _chip(
+            'Corrected by officer',
+            context.colors.warning,
+            icon: Icons.edit_note,
+          )
+        : _chip(
+            'Checked by officer',
+            context.colors.success,
+            icon: Icons.verified_outlined,
+          );
   }
 
   // No feedback / Marked correct / Actually <label> / Reported wrong
@@ -245,9 +326,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<ScanRecord>>(
-      future: _scans,
+      future: _phoneScans,
       builder: (context, snapshot) {
-        final scans = snapshot.data ?? [];
+        final phoneScans = snapshot.data ?? [];
+        final all = mergeHistory(phoneScans, _serverScans);
         return Scaffold(
           appBar: AppBar(
             title: const Text('History'),
@@ -269,18 +351,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   icon: const Icon(Icons.ios_share),
                   onPressed: _exportCsv,
                 ),
-              if (scans.isNotEmpty)
+              if (phoneScans.isNotEmpty)
                 IconButton(
-                  tooltip: 'Clear all',
+                  tooltip: "Clear this phone's history",
                   icon: const Icon(Icons.delete_sweep),
-                  onPressed: () => _clearHistory(scans),
+                  onPressed: () => _clearHistory(phoneScans),
                 ),
             ],
           ),
           body: Column(
             children: [
-              _buildSummaryBar(),
-              Expanded(child: _buildBody(snapshot, scans)),
+              _buildSummaryBar(all),
+              if (all.isNotEmpty) _buildFilterBar(),
+              Expanded(child: _buildBody(snapshot, all)),
             ],
           ),
         );
@@ -288,8 +371,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildSummaryBar() {
-    final total = _summary['total'] ?? 0;
+  Widget _buildSummaryBar(List<ScanRecord> all) {
+    final officer = all.where((s) => s.isOfficerVerified).length;
     final checked = _summary['checked'] ?? 0;
     final correct = _summary['correct'] ?? 0;
     final accuracy = checked == 0
@@ -325,9 +408,68 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          stat('$total', 'scans'),
+          stat('${all.length}', 'scans'),
           stat('$checked', 'checked'),
           stat(accuracy, 'accuracy'),
+          stat('$officer', 'by officer'),
+        ],
+      ),
+    );
+  }
+
+  // The date range, then one chip per condition. Scrolls sideways.
+  Widget _buildFilterBar() {
+    final from = _filter.from;
+    final to = _filter.to;
+    final String dates;
+    if (from == null || to == null) {
+      dates = 'Any date';
+    } else if (from == to) {
+      dates = formatDate(from);
+    } else {
+      dates = '${formatDate(from)} – ${formatDate(to)}';
+    }
+
+    Widget labelChip(String? label) {
+      return Padding(
+        padding: const EdgeInsets.only(right: AppSpacing.sm),
+        child: ChoiceChip(
+          label: Text(label == null ? 'All' : LabelService.pretty(label)),
+          selected: _filter.label == label,
+          onSelected: (_) => setState(() => _filter = _filter.withLabel(label)),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 56,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.page,
+          vertical: AppSpacing.sm,
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.sm),
+            child: from == null
+                ? ActionChip(
+                    avatar: const Icon(Icons.date_range, size: 18),
+                    label: Text(dates),
+                    onPressed: _pickDates,
+                  )
+                : InputChip(
+                    avatar: const Icon(Icons.date_range, size: 18),
+                    label: Text(dates),
+                    selected: true,
+                    onPressed: _pickDates,
+                    deleteButtonTooltipMessage: 'Any date',
+                    onDeleted: () =>
+                        setState(() => _filter = _filter.withDates(null, null)),
+                  ),
+          ),
+          labelChip(null),
+          for (final label in _labels) labelChip(label),
         ],
       ),
     );
@@ -335,7 +477,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _buildBody(
     AsyncSnapshot<List<ScanRecord>> snapshot,
-    List<ScanRecord> scans,
+    List<ScanRecord> all,
   ) {
     if (snapshot.connectionState != ConnectionState.done) {
       return const Center(child: PinePalLoader(label: 'Loading scans...'));
@@ -357,21 +499,37 @@ class _HistoryScreenState extends State<HistoryScreen> {
       );
     }
 
+    final scans = _filter.apply(all);
     if (scans.isEmpty) {
-      return ListView(
-        padding: const EdgeInsets.all(AppSpacing.page),
-        children: const [
-          EmptyState(
-            icon: Icons.history,
-            title: 'No scans yet',
-            text: 'Scans you take with the camera button are saved here.',
-          ),
-        ],
+      return RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView(
+          padding: const EdgeInsets.all(AppSpacing.page),
+          children: [
+            if (all.isEmpty)
+              const EmptyState(
+                icon: Icons.history,
+                title: 'No scans yet',
+                text: 'Scans you take with the camera button are saved here.',
+              )
+            else
+              EmptyState(
+                icon: Icons.filter_alt_off_outlined,
+                title: 'No scans match',
+                text: 'Try another condition or date.',
+                action: OutlinedButton(
+                  onPressed: () =>
+                      setState(() => _filter = const HistoryFilter()),
+                  child: const Text('Clear filters'),
+                ),
+              ),
+          ],
+        ),
       );
     }
 
     return RefreshIndicator(
-      onRefresh: () async => _reload(),
+      onRefresh: _refresh,
       child: ListView.builder(
         padding: const EdgeInsets.all(AppSpacing.page),
         itemCount: scans.length,
@@ -380,29 +538,53 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  Widget _thumbnail(ScanRecord scan) {
+    Widget missing(BuildContext context, Object error, StackTrace? stack) =>
+        SizedBox(
+          width: 56,
+          height: 56,
+          child: Icon(
+            Icons.image_not_supported,
+            size: 40,
+            color: context.colors.textMuted,
+          ),
+        );
+    // decode a small copy, not the full-size photo
+    final pixels = thumbnailPixels(context, 56);
+    if (!scan.onPhone) {
+      final url = scan.imageUrl;
+      if (url == null) return missing(context, 'no photo', null);
+      return Image.network(
+        url,
+        width: 56,
+        height: 56,
+        cacheWidth: pixels,
+        fit: BoxFit.cover,
+        errorBuilder: missing,
+      );
+    }
+    return Image.file(
+      File(scan.imagePath),
+      width: 56,
+      height: 56,
+      cacheWidth: pixels,
+      fit: BoxFit.cover,
+      errorBuilder: missing,
+    );
+  }
+
   Widget _buildTile(ScanRecord scan) {
+    final officer = _officerChip(scan);
     return TileCard(
       child: ListTile(
         onTap: () => _openDetail(scan),
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(AppRadius.control),
-          child: Image.file(
-            File(scan.imagePath),
-            width: 56,
-            height: 56,
-            // decode a small copy, not the full-size photo
-            cacheWidth: thumbnailPixels(context, 56),
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stack) => Icon(
-              Icons.image_not_supported,
-              size: 40,
-              color: context.colors.textMuted,
-            ),
-          ),
+          child: _thumbnail(scan),
         ),
         title: Align(
           alignment: Alignment.centerLeft,
-          child: DiseaseBadge(label: scan.predictedLabel),
+          child: DiseaseBadge(label: scan.shownLabel),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,25 +598,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
             Wrap(
               spacing: 6,
               runSpacing: 4,
-              children: [_statusChip(scan.synced), _feedbackChip(scan)],
+              children: [
+                _statusChip(scan),
+                ?officer,
+                if (scan.onPhone || scan.hasFeedback) _feedbackChip(scan),
+              ],
             ),
           ],
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: 'Verify or edit',
-              icon: const Icon(Icons.edit_outlined),
-              onPressed: () => _openEditor(scan),
-            ),
-            IconButton(
-              tooltip: 'Delete',
-              icon: Icon(Icons.delete_outline, color: context.colors.danger),
-              onPressed: () => _deleteScan(scan),
-            ),
-          ],
-        ),
+        // only this phone's own scans can be changed here
+        trailing: !scan.onPhone
+            ? null
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Verify or edit',
+                    icon: const Icon(Icons.edit_outlined),
+                    onPressed: () => _openEditor(scan),
+                  ),
+                  IconButton(
+                    tooltip: 'Delete',
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: context.colors.danger,
+                    ),
+                    onPressed: () => _deleteScan(scan),
+                  ),
+                ],
+              ),
       ),
     );
   }

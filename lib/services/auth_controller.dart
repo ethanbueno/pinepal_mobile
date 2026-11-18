@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import 'dashboard_cache.dart';
+import 'server_scans.dart';
 
 // The signed-in account, as the web backend describes it.
 class AuthUser {
@@ -228,7 +228,7 @@ class AuthController extends ChangeNotifier {
   Future<void> signOut() async {
     _session = null;
     notifyListeners();
-    await DashboardCache.clearAll(); // the next person must not see these numbers
+    await ServerScanCache.clearAll(); // the next person must not see these numbers
     try {
       await _store.write(null);
     } catch (_) {

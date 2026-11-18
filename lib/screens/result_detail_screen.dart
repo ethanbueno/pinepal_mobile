@@ -8,6 +8,7 @@ import '../services/classifier_service.dart';
 import '../services/database_helper.dart';
 import '../services/label_service.dart';
 import '../services/protocol_service.dart';
+import '../services/server_scans.dart';
 import '../theme/app_colors.dart';
 import '../utils/format.dart';
 import '../utils/image_size.dart';
@@ -36,7 +37,35 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
   void initState() {
     super.initState();
     _scan = widget.scan;
-    _protocol = ProtocolService.getProtocolForDisease(_scan.predictedLabel);
+    _protocol = ProtocolService.getProtocolForDisease(_scan.shownLabel);
+    _addOfficerCheck();
+  }
+
+  // Opened from Home or the result sheet, a phone scan has no officer check
+  // yet: take it from the server's saved copy (History keeps it up to date)
+  Future<void> _addOfficerCheck() async {
+    if (!_scan.onPhone || _scan.isOfficerVerified) return;
+    try {
+      final saved = await ServerScans().saved();
+      final copy = saved?.scans
+          .where((s) => s.scanUuid == _scan.scanUuid)
+          .firstOrNull;
+      if (copy == null || copy.officerLabel == null || !mounted) return;
+      _setScan(_scan.withServer(copy));
+    } catch (_) {
+      // no saved copy: shown without the officer's check
+    }
+  }
+
+  // The guide follows the officer's answer, so load it again if that changed
+  void _setScan(ScanRecord scan) {
+    final newLabel = scan.shownLabel != _scan.shownLabel;
+    setState(() {
+      _scan = scan;
+      if (newLabel) {
+        _protocol = ProtocolService.getProtocolForDisease(scan.shownLabel);
+      }
+    });
   }
 
   Future<void> _openEditor() async {
@@ -47,8 +76,10 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
     if (saved != true) return;
 
     // Show the new verification and notes right away
+    // (the officer's check is not in the database, so it is carried over)
     final fresh = await DatabaseHelper.instance.getScan(_scan.scanUuid);
-    if (mounted && fresh != null) setState(() => _scan = fresh);
+    if (!mounted || fresh == null) return;
+    _setScan(fresh.withOfficerOf(_scan));
   }
 
   @override
@@ -59,11 +90,12 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
         future: _protocol,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: PinePalLoader(label: 'Loading report...'));
+            return const Center(
+              child: PinePalLoader(label: 'Loading report...'),
+            );
           }
           final protocol =
-              snapshot.data ??
-              RemediationProtocol.fallback(_scan.predictedLabel);
+              snapshot.data ?? RemediationProtocol.fallback(_scan.shownLabel);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(AppSpacing.page),
@@ -77,22 +109,27 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                 ],
                 const SizedBox(height: AppSpacing.lg),
                 _buildSummaryCard(protocol),
+                const SizedBox(height: AppSpacing.md),
+                _buildOfficerCard(),
                 const SizedBox(height: AppSpacing.lg),
                 PathogenCard(protocol: protocol),
                 const SizedBox(height: AppSpacing.md),
                 RemediationCard(protocol: protocol),
                 const SizedBox(height: AppSpacing.section),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                // a scan from the web or another phone is changed there
+                if (_scan.onPhone) ...[
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    icon: const Icon(Icons.rate_review_outlined),
+                    label: Text(
+                      _scan.hasFeedback ? 'Edit feedback' : 'Give feedback',
+                    ),
+                    onPressed: _openEditor,
                   ),
-                  icon: const Icon(Icons.rate_review_outlined),
-                  label: Text(
-                    _scan.hasFeedback ? 'Edit feedback' : 'Give feedback',
-                  ),
-                  onPressed: _openEditor,
-                ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 8),
+                ],
                 OutlinedButton(
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -134,26 +171,111 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
     );
   }
 
-  Widget _buildImageCard(RemediationProtocol protocol) {
+  Widget _photo() {
+    if (!_scan.onPhone) {
+      final url = _scan.imageUrl;
+      if (url == null) return _placeholder();
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        cacheWidth: screenWidthPixels(context),
+        errorBuilder: (context, error, stack) => _placeholder(),
+      );
+    }
     final file = File(_scan.imagePath);
+    if (!file.existsSync()) return _placeholder();
+    return Image.file(
+      file,
+      fit: BoxFit.cover,
+      // as wide as the screen, not the full camera size
+      cacheWidth: screenWidthPixels(context),
+      errorBuilder: (context, error, stack) => _placeholder(),
+    );
+  }
 
+  // What the agricultural officer said about the scan on the web dashboard
+  Widget _buildOfficerCard() {
+    final scan = _scan;
+    final String title;
+    final String text;
+    final IconData icon;
+    final Color color;
+    if (scan.isOfficerVerified) {
+      final who = scan.officerBy ?? 'an agricultural officer';
+      final when = scan.officerAt == null
+          ? ''
+          : ' on ${formatDateTime(scan.officerAt!)}';
+      if (scan.isOfficerCorrected) {
+        title = 'Corrected by an officer';
+        text =
+            'Checked by $who$when. The model said '
+            '${LabelService.pretty(scan.predictedLabel)}, the officer says it '
+            "is ${LabelService.pretty(scan.officerLabel!)}. The guide below "
+            "is for the officer's answer.";
+        icon = Icons.edit_note;
+        color = context.colors.warning;
+      } else {
+        title = 'Checked by an officer';
+        text = 'Checked by $who$when. The result is correct.';
+        icon = Icons.verified_outlined;
+        color = context.colors.success;
+      }
+    } else {
+      title = 'Not checked by an officer yet';
+      text = scan.synced
+          ? "An agricultural officer hasn't checked this scan yet. Their "
+                'answer shows here once they do.'
+          : 'Sync this scan so an agricultural officer can check it.';
+      icon = Icons.schedule;
+      color = context.colors.textMuted;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  text,
+                  style: TextStyle(
+                    color: context.colors.textMuted,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageCard(RemediationProtocol protocol) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.card),
       child: Stack(
         children: [
-          SizedBox(
-            height: 240,
-            width: double.infinity,
-            child: file.existsSync()
-                ? Image.file(
-                    file,
-                    fit: BoxFit.cover,
-                    // as wide as the screen, not the full camera size
-                    cacheWidth: screenWidthPixels(context),
-                    errorBuilder: (context, error, stack) => _placeholder(),
-                  )
-                : _placeholder(),
-          ),
+          SizedBox(height: 240, width: double.infinity, child: _photo()),
           Positioned(
             top: 12,
             left: 12,
@@ -306,10 +428,16 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
             'Scanned on ${formatDateTime(scan.scannedAt)}',
           ),
           _row(
-            scan.imageSource == 'Camera'
-                ? Icons.camera_alt_outlined
-                : Icons.photo_library_outlined,
-            'Source: ${scan.imageSource}',
+            switch (scan.imageSource) {
+              'Camera' => Icons.camera_alt_outlined,
+              'Web' => Icons.language,
+              _ => Icons.photo_library_outlined,
+            },
+            scan.onPhone
+                ? 'Source: ${scan.imageSource}'
+                : scan.imageSource == 'Web'
+                ? 'Saved on the PinePal website'
+                : 'Taken on another phone (${scan.imageSource})',
           ),
           _row(feedbackIcon, feedback),
           if (scan.notes != null) _row(Icons.notes, scan.notes!),

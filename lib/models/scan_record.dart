@@ -1,3 +1,5 @@
+import 'server_scan.dart';
+
 // The farmer's answer to "was the result correct?". Officers verify scans on
 // the web dashboard; this is only the farmer's side of it.
 enum ScanFeedback {
@@ -44,6 +46,19 @@ class ScanRecord {
   // or when the result was reported wrong and the farmer is not sure what it is.
   final String? verifiedLabel;
 
+  // Not saved in the phone's database: filled in from the server's copy of
+  // the scan (ServerScan) each time History loads.
+  // The agricultural officer's check on the web dashboard, when there is one.
+  final String? officerLabel;
+  final String? officerBy;
+  final DateTime? officerAt;
+
+  // False for a scan taken on the web or another phone: it is only on the
+  // server, so there is no photo file here (imageUrl instead) and it can't be
+  // edited or deleted from this phone.
+  final bool onPhone;
+  final String? imageUrl;
+
   ScanRecord({
     required this.scanUuid,
     required this.predictedLabel,
@@ -62,7 +77,65 @@ class ScanRecord {
     this.farmName,
     this.feedback,
     this.verifiedLabel,
+    this.officerLabel,
+    this.officerBy,
+    this.officerAt,
+    this.onPhone = true,
+    this.imageUrl,
   });
+
+  // A scan that is only on the server. Needs a server that sends the details
+  // (ServerScan.hasDetails).
+  factory ScanRecord.fromServer(ServerScan scan) {
+    return ScanRecord(
+      scanUuid: scan.scanUuid,
+      predictedLabel: scan.predictedLabel ?? scan.label,
+      confidence: scan.confidence ?? 0,
+      secondLabel: scan.secondLabel,
+      secondConfidence: scan.secondConfidence,
+      imageSource: scan.imageSource ?? 'Web',
+      imagePath: '',
+      latitude: scan.latitude,
+      longitude: scan.longitude,
+      scannedAt: scan.scannedAt,
+      synced: true,
+      notes: scan.notes,
+      municipality: scan.municipality,
+      farmName: scan.farmName,
+      feedback: ScanFeedback.values.asNameMap()[scan.farmerFeedback],
+      verifiedLabel: scan.farmerLabel,
+      officerLabel: scan.officerLabel,
+      officerBy: scan.officerBy,
+      officerAt: scan.officerAt,
+      onPhone: false,
+      imageUrl: scan.imageUrl,
+    );
+  }
+
+  // This phone's scan with the officer's check from the server's copy
+  ScanRecord withServer(ServerScan scan) => _copy(
+    officerLabel: scan.officerLabel,
+    officerBy: scan.officerBy,
+    officerAt: scan.officerAt,
+  );
+
+  // This scan with another copy's officer check, after reading it again from
+  // the database (which does not keep it)
+  ScanRecord withOfficerOf(ScanRecord other) => _copy(
+    officerLabel: other.officerLabel,
+    officerBy: other.officerBy,
+    officerAt: other.officerAt,
+  );
+
+  bool get isOfficerVerified => officerLabel != null;
+
+  // The officer changed the model's answer
+  bool get isOfficerCorrected =>
+      officerLabel != null && officerLabel != predictedLabel;
+
+  // What the scan is shown and filtered as: the officer's answer when there
+  // is one, otherwise the model's (the same as the web)
+  String get shownLabel => officerLabel ?? predictedLabel;
 
   bool get hasGps => latitude != 0.0 || longitude != 0.0;
 
@@ -130,6 +203,30 @@ class ScanRecord {
     bool clearNotes = false,
     String? municipality,
   }) {
+    return _copy(
+      feedback: clearFeedback ? null : (feedback ?? this.feedback),
+      verifiedLabel: clearVerifiedLabel
+          ? null
+          : (verifiedLabel ?? this.verifiedLabel),
+      notes: clearNotes ? null : (notes ?? this.notes),
+      municipality: municipality ?? this.municipality,
+    );
+  }
+
+  static const _same = Object();
+
+  // Every field kept unless passed; pass null to empty a field
+  ScanRecord _copy({
+    Object? feedback = _same,
+    Object? verifiedLabel = _same,
+    Object? notes = _same,
+    Object? municipality = _same,
+    Object? officerLabel = _same,
+    Object? officerBy = _same,
+    Object? officerAt = _same,
+  }) {
+    T pick<T>(Object? value, T current) =>
+        identical(value, _same) ? current : value as T;
     return ScanRecord(
       scanUuid: scanUuid,
       predictedLabel: predictedLabel,
@@ -143,13 +240,16 @@ class ScanRecord {
       scannedAt: scannedAt,
       synced: synced,
       syncedAt: syncedAt,
-      notes: clearNotes ? null : (notes ?? this.notes),
-      municipality: municipality ?? this.municipality,
+      notes: pick(notes, this.notes),
+      municipality: pick(municipality, this.municipality),
       farmName: farmName,
-      feedback: clearFeedback ? null : (feedback ?? this.feedback),
-      verifiedLabel: clearVerifiedLabel
-          ? null
-          : (verifiedLabel ?? this.verifiedLabel),
+      feedback: pick(feedback, this.feedback),
+      verifiedLabel: pick(verifiedLabel, this.verifiedLabel),
+      officerLabel: pick(officerLabel, this.officerLabel),
+      officerBy: pick(officerBy, this.officerBy),
+      officerAt: pick(officerAt, this.officerAt),
+      onPhone: onPhone,
+      imageUrl: imageUrl,
     );
   }
 }

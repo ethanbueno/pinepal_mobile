@@ -11,6 +11,7 @@ import '../widgets/tile_card.dart';
 import '../widgets/disease_badge.dart';
 import '../widgets/farm_dashboard.dart';
 import 'guide_screen.dart';
+import 'help_screen.dart';
 import 'history_screen.dart';
 import 'profile_screen.dart';
 import 'result_detail_screen.dart';
@@ -265,6 +266,14 @@ class _HomeTabState extends State<_HomeTab> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'How PinePal works',
+                  icon: const Icon(Icons.help_outline),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HelpScreen()),
                   ),
                 ),
               ],

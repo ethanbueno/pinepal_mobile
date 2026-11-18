@@ -1,4 +1,5 @@
 import 'scan_record.dart';
+import 'server_scan.dart';
 
 // The few things the farmer dashboard needs from one scan. It can come from
 // this phone's SQLite database or from the server, so both are turned into
@@ -32,24 +33,16 @@ class DashboardScan {
     );
   }
 
-  // From GET /api/mobile/scans. The server already picked the label: the
-  // officer's correction, then the farmer's, then the model's.
-  factory DashboardScan.fromJson(Map<String, dynamic> json) {
+  // From the server. It already picked the label: the officer's correction,
+  // then the farmer's, then the model's.
+  factory DashboardScan.fromServer(ServerScan scan) {
     return DashboardScan(
-      label: json['label'] as String,
-      scannedAt: DateTime.parse(json['scanned_at'] as String),
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
+      label: scan.label,
+      scannedAt: scan.scannedAt,
+      latitude: scan.latitude,
+      longitude: scan.longitude,
     );
   }
-
-  // The same shape as fromJson reads, for the saved copy (DashboardCache)
-  Map<String, dynamic> toJson() => {
-    'label': label,
-    'scanned_at': scannedAt.toIso8601String(),
-    'latitude': latitude,
-    'longitude': longitude,
-  };
 }
 
 // One bar of the weekly chart

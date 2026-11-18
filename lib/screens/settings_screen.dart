@@ -7,6 +7,7 @@ import '../theme/app_colors.dart';
 import '../theme/theme_controller.dart';
 import '../widgets/labeled_field.dart';
 import '../widgets/section_card.dart';
+import 'help_screen.dart';
 
 const appVersion = '1.0.0';
 
@@ -57,6 +58,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSync(),
               const SizedBox(height: 12),
               _buildAppearance(),
+              const SizedBox(height: 12),
+              _buildHelp(),
               const SizedBox(height: 12),
               _buildAbout(),
               if (_settings.developerOptions) ...[
@@ -146,6 +149,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ThemeMode.system =>
             'Follows your phone: light or dark, the same as its setting.',
         }, style: TextStyle(color: context.colors.textMuted, fontSize: 13)),
+      ],
+    );
+  }
+
+  Widget _buildHelp() {
+    return SectionCard(
+      title: 'Help',
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.help_outline, color: context.colors.accentText),
+          title: const Text('How PinePal works'),
+          subtitle: const Text(
+            'Photo tips, the confidence score, offline sync and officer '
+            'checks.',
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const HelpScreen()),
+          ),
+        ),
       ],
     );
   }
