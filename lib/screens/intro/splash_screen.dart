@@ -10,10 +10,10 @@ import 'intro_content.dart';
 import 'intro_widgets.dart';
 import 'onboarding_screen.dart';
 
-// Shown on every launch. Black screen with the white logo; after a moment the
-// background fades to the theme's page color and the logo to its text color,
-// then the onboarding fades in. After the first time (or once signed in) it
-// goes straight to the home screen instead.
+// Shown on every launch: the logo in its own colors on the page color of the
+// saved theme (light on a fresh install, dark if the farmer chose dark). The
+// logo fades and grows in, then the onboarding fades in. After the first time
+// (or once signed in) it goes straight to the home screen instead.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -23,9 +23,11 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  static const _hold = Duration(milliseconds: 1000); // black, before the fade
+  static const _hold = Duration(milliseconds: 300); // before the logo comes in
   static const _fade = Duration(milliseconds: 700);
-  static const _afterFade = Duration(milliseconds: 400);
+  static const _afterFade = Duration(
+    milliseconds: 1100,
+  ); // the logo stays a moment
 
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -64,33 +66,31 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _curve,
-      builder: (context, _) {
-        // black with a white logo, then the theme's page and text colors
-        final t = _curve.value;
-        final background = Color.lerp(Colors.black, context.colors.canvas, t)!;
-        final logo = Color.lerp(Colors.white, context.colors.text, t)!;
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: t < 0.5
-              ? overlayStyleFor(Brightness.dark, background: Colors.black)
-              : overlayStyleFor(Theme.of(context).brightness),
-          child: Scaffold(
-            backgroundColor: background,
-            body: Center(
-              child: Image.asset(
-                IntroAssets.logo,
-                width: 120,
-                height: 120,
-                color: logo,
-                colorBlendMode: BlendMode.srcIn,
-                errorBuilder: (context, error, stack) =>
-                    Icon(Icons.eco, size: 96, color: logo),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: overlayStyleFor(Theme.of(context).brightness),
+      child: Scaffold(
+        backgroundColor: context.colors.canvas,
+        body: Center(
+          child: AnimatedBuilder(
+            animation: _curve,
+            builder: (context, child) => Opacity(
+              opacity: _curve.value,
+              child: Transform.scale(
+                scale: 0.9 + 0.1 * _curve.value,
+                child: child,
               ),
             ),
+            // the logo's own colors, not a silhouette
+            child: Image.asset(
+              IntroAssets.logo,
+              width: 120,
+              height: 120,
+              errorBuilder: (context, error, stack) =>
+                  Icon(Icons.eco, size: 96, color: context.colors.accent),
+            ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

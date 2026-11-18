@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- The screen Android shows while the app starts, before Flutter draws: the app's page
+     color only (light, or dark when the phone is in dark mode). Android draws it before
+     any app code runs, so it can't read the theme chosen inside the app; the Flutter
+     splash right after it uses the saved theme and shows the logo in color. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="?android:colorBackground" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+    <item android:drawable="@color/launch_background" />
 </layer-list>

@@ -6,8 +6,7 @@ import 'package:flutter/material.dart';
 // Colors come from the app theme (context.colors), light or dark.
 
 class IntroAssets {
-  // The logo is drawn as a single-color silhouette (white on black, then the
-  // theme's text color), so any logo PNG with a transparent background works.
+  // The logo, shown in its own colors on the splash screen
   static const logo = 'assets/icons/logo.png';
 }
 

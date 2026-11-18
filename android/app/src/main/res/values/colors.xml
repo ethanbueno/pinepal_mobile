@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FAF9F5</color>
+    <!-- the app's page color, shown while the app starts (light, the default theme) -->
+    <color name="launch_background">#FAF9F5</color>
 </resources>
