@@ -18,9 +18,7 @@ void main() {
     preventiveMeasures: ['Avoid wounding the fruit.', 'Improve drainage.'],
   );
 
-  testWidgets('symptoms and prevention show as bullet lists', (
-    tester,
-  ) async {
+  testWidgets('symptoms and prevention show as bullet lists', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: buildTheme(Brightness.light),

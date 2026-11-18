@@ -27,8 +27,6 @@ class _IntroLoadingScreenState extends State<IntroLoadingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return IntroPage(
-      body: const Center(child: PinePalLoader()),
-    );
+    return IntroPage(body: const Center(child: PinePalLoader()));
   }
 }

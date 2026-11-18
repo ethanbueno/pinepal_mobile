@@ -29,7 +29,9 @@ class _GuideScreenState extends State<GuideScreen> {
         future: _protocols,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: PinePalLoader(label: 'Loading guides...'));
+            return const Center(
+              child: PinePalLoader(label: 'Loading guides...'),
+            );
           }
           final protocols = snapshot.data ?? [];
 
