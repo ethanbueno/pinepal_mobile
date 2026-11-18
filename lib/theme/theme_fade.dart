@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
@@ -71,9 +72,13 @@ class _ThemeFadeState extends State<ThemeFade>
 
   Future<void> _capture() async {
     if (_skip) return;
-    final boundary = _boundaryKey.currentContext?.findRenderObject();
-    if (boundary is! RenderRepaintBoundary || boundary.debugNeedsPaint) return;
     try {
+      final boundary = _boundaryKey.currentContext?.findRenderObject();
+      if (boundary is! RenderRepaintBoundary) return;
+      // debugNeedsPaint only works in debug builds: in release and profile it
+      // throws (its value is set inside an assert), which used to stop the
+      // theme from switching at all
+      if (kDebugMode && boundary.debugNeedsPaint) return;
       final pixelRatio = View.of(context).devicePixelRatio;
       final image = await boundary
           .toImage(pixelRatio: pixelRatio)

@@ -8,6 +8,7 @@ import 'package:pinepal_mobile/screens/intro/onboarding_screen.dart';
 import 'package:pinepal_mobile/screens/intro/splash_screen.dart';
 import 'package:pinepal_mobile/screens/intro/welcome_screen.dart';
 import 'package:pinepal_mobile/services/app_settings.dart';
+import 'package:pinepal_mobile/widgets/pinepal_loader.dart';
 
 // Moves time forward frame by frame, so animations and timers run as in the app
 Future<void> wait(WidgetTester tester, int milliseconds) async {
@@ -45,7 +46,7 @@ void main() {
 
     await tester.tap(find.text('Get Started'));
     await wait(tester, 600);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(PinePalLoader), findsOneWidget);
 
     await wait(tester, 1800);
     expect(find.byType(WelcomeScreen), findsOneWidget);

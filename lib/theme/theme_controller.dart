@@ -26,7 +26,11 @@ class ThemeController extends ValueNotifier<ThemeMode> {
 
   Future<void> setMode(ThemeMode mode) async {
     if (mode == value) return;
-    await ThemeFade.captureBeforeSwitch(); // picture of the old look to fade out
+    try {
+      await ThemeFade.captureBeforeSwitch(); // picture of the old look to fade out
+    } catch (_) {
+      // the fade is only decoration; never let it block the switch
+    }
     value = mode;
     try {
       final prefs = await SharedPreferences.getInstance();
