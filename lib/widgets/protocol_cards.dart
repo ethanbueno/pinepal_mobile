@@ -179,7 +179,8 @@ class DiseaseHeader extends StatelessWidget {
 // The photos in the guide header: the main photo (200x130) and four smaller
 // ones (96x130) to its right. The row scrolls sideways so it never overflows
 // on a small phone. Tapping a photo opens the full-screen viewer at that photo,
-// where you can swipe between the photos that loaded.
+// where you can swipe between the photos that loaded. Missing photos leave no
+// empty box.
 class ReferencePhotoRow extends StatefulWidget {
   final List<String> paths;
   final String caption;
@@ -225,25 +226,26 @@ class _ReferencePhotoRowState extends State<ReferencePhotoRow> {
 
   @override
   Widget build(BuildContext context) {
+    // only the photos there are: a missing or broken one leaves no empty box
+    final photos = _loaded;
+    if (photos.isEmpty) return const SizedBox.shrink();
     final children = <Widget>[];
-    for (var i = 0; i < widget.slots; i++) {
-      final path = i < widget.paths.length ? widget.paths[i] : null;
+    for (var i = 0; i < photos.length; i++) {
+      final path = photos[i];
       if (i > 0) children.add(const SizedBox(width: AppSpacing.sm));
       children.add(
         ReferencePhoto(
-          key: ValueKey('photo-slot-$i'),
+          key: ValueKey('photo-$path'),
           path: path,
           caption: widget.caption,
           width: i == 0 ? 200 : 96,
           compact: i > 0,
-          onTap: path == null ? null : () => _open(path),
-          onFailed: path == null
-              ? null
-              : () {
-                  if (mounted && !_failed.contains(path)) {
-                    setState(() => _failed.add(path));
-                  }
-                },
+          onTap: () => _open(path),
+          onFailed: () {
+            if (mounted && !_failed.contains(path)) {
+              setState(() => _failed.add(path));
+            }
+          },
         ),
       );
     }
