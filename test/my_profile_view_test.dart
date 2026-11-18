@@ -17,11 +17,9 @@ import 'package:pinepal_mobile/widgets/my_profile_view.dart';
 Map<String, dynamic> profileJson({
   String username = 'juan',
   String? avatarUrl,
-  String? coverUrl,
 }) => {
   'account': {
     'avatar_url': avatarUrl,
-    'cover_url': coverUrl,
     'full_name': 'Juan Dela Cruz',
     'username': username,
     'email': 'juan@example.com',
@@ -198,8 +196,8 @@ void main() {
 
     Future<void> showWithPhotos(
       WidgetTester tester, {
-      String? coverUrl,
-      Future<String?> Function(ImageSource, String)? pickPhoto,
+      String? avatarUrl,
+      Future<String?> Function(ImageSource)? pickPhoto,
     }) async {
       sent = [];
       final api = ApiClient(
@@ -218,7 +216,7 @@ void main() {
             return http.Response(jsonEncode(profileJson()), 200);
           }
           return http.Response(
-            jsonEncode(profileJson(coverUrl: coverUrl)),
+            jsonEncode(profileJson(avatarUrl: avatarUrl)),
             200,
           );
         }),
@@ -267,13 +265,11 @@ void main() {
       final photo = File('${dir.path}/me.jpg')
         ..writeAsBytesSync([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0]);
       ImageSource? source;
-      String? kind;
 
       await showWithPhotos(
         tester,
-        pickPhoto: (s, k) async {
+        pickPhoto: (s) async {
           source = s;
-          kind = k;
           return photo.path;
         },
       );
@@ -297,7 +293,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(source, ImageSource.gallery);
-      expect(kind, 'avatar');
       final upload = sent.last;
       expect(upload.method, 'POST');
       expect(upload.url.path, '/api/profile/photo/avatar');
@@ -310,19 +305,19 @@ void main() {
       expect(find.text('Profile photo changed.'), findsOneWidget);
     });
 
-    testWidgets('Remove photo takes the cover photo off', (tester) async {
+    testWidgets('Remove photo goes back to the initials', (tester) async {
       await showWithPhotos(
         tester,
-        coverUrl: 'https://res.cloudinary.com/x/c.jpg',
+        avatarUrl: 'https://res.cloudinary.com/x/a.jpg',
       );
-      await tester.tap(find.text('Change cover'));
+      await tester.tap(find.byTooltip('Change profile photo'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Remove photo'));
       await tester.pumpAndSettle();
 
       expect(sent.last.method, 'DELETE');
-      expect(sent.last.url.path, '/api/profile/photo/cover');
-      expect(find.text('Cover photo removed.'), findsOneWidget);
+      expect(sent.last.url.path, '/api/profile/photo/avatar');
+      expect(find.text('Profile photo removed.'), findsOneWidget);
     });
   });
 }

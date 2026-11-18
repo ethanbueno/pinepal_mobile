@@ -40,9 +40,8 @@ const _editable = [
   _Editable('farm_size_ha', 'Farm size', farmOnly: true),
 ];
 
-// The signed-in user's own details, from the server: the cover and profile
-// photos with the name (both can be changed, like Settings > Account on the
-// web), Overview and Farm for farmers, then Personal info. Edit account lists
+// The signed-in user's own details, from the server: the profile photo with
+// the name (the photo can be changed, like Account on the web), Overview and Farm for farmers, then Personal info. Edit account lists
 // what can be changed; each detail is changed on its own and only that detail
 // is sent. It sits at the top of the Account tab, as a column of cards.
 class MyProfileView extends StatefulWidget {
@@ -60,7 +59,7 @@ class MyProfileView extends StatefulWidget {
   final AppSettings? settings;
   // Picks a photo and returns its path on the phone (null when cancelled).
   // Leave empty to use the camera or gallery; tests pass their own.
-  final Future<String?> Function(ImageSource source, String kind)? pickPhoto;
+  final Future<String?> Function(ImageSource source)? pickPhoto;
 
   @override
   State<MyProfileView> createState() => _MyProfileViewState();
@@ -82,8 +81,8 @@ class _MyProfileViewState extends State<MyProfileView> {
   String? _formError;
   bool _saving = false;
 
-  // The photo being uploaded or removed ('avatar' / 'cover'), or null
-  String? _photoBusy;
+  // The profile photo is being uploaded or removed
+  bool _photoBusy = false;
 
   @override
   void initState() {
@@ -115,24 +114,22 @@ class _MyProfileViewState extends State<MyProfileView> {
 
   // Opens the camera or gallery. The photo is shrunk on the phone first, so a
   // big camera photo uploads quickly on a farm's mobile data.
-  Future<String?> _pick(ImageSource source, String kind) async {
-    if (widget.pickPhoto case final pick?) return pick(source, kind);
-    final avatar = kind == 'avatar';
+  Future<String?> _pick(ImageSource source) async {
+    if (widget.pickPhoto case final pick?) return pick(source);
     final picked = await ImagePicker().pickImage(
       source: source,
-      maxWidth: avatar ? 1024 : 2048,
-      maxHeight: avatar ? 1024 : 2048,
+      maxWidth: 1024,
+      maxHeight: 1024,
       imageQuality: 85,
-      preferredCameraDevice: avatar ? CameraDevice.front : CameraDevice.rear,
+      preferredCameraDevice: CameraDevice.front,
     );
     return picked?.path;
   }
 
-  // The sheet behind a photo's change button: camera, gallery or remove
-  Future<void> _changePhoto(String kind) async {
-    final p = _profile!;
-    final label = kind == 'avatar' ? 'Profile photo' : 'Cover photo';
-    final hasPhoto = (kind == 'avatar' ? p.avatarUrl : p.coverUrl) != null;
+  // The sheet behind the photo's camera button: camera, gallery or remove
+  Future<void> _changePhoto() async {
+    const label = 'Profile photo';
+    final hasPhoto = _profile!.avatarUrl != null;
     final colors = context.colors;
     final choice = await showModalBottomSheet<String>(
       context: context,
@@ -145,12 +142,9 @@ class _MyProfileViewState extends State<MyProfileView> {
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                child: Text(
+                child: const Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
               ListTile(
@@ -183,10 +177,7 @@ class _MyProfileViewState extends State<MyProfileView> {
     if (choice != 'remove') {
       final camera = choice == 'camera';
       try {
-        path = await _pick(
-          camera ? ImageSource.camera : ImageSource.gallery,
-          kind,
-        );
+        path = await _pick(camera ? ImageSource.camera : ImageSource.gallery);
       } catch (e) {
         _say('Could not open the ${camera ? 'camera' : 'gallery'}.');
         return;
@@ -194,22 +185,18 @@ class _MyProfileViewState extends State<MyProfileView> {
       if (path == null || !mounted) return;
     }
 
-    setState(() => _photoBusy = kind);
+    setState(() => _photoBusy = true);
     try {
       final updated = path == null
-          ? await _api.removeProfilePhoto(token: _auth.token!, kind: kind)
-          : await _api.uploadProfilePhoto(
-              token: _auth.token!,
-              kind: kind,
-              path: path,
-            );
+          ? await _api.removeProfilePhoto(token: _auth.token!)
+          : await _api.uploadProfilePhoto(token: _auth.token!, path: path);
       if (!mounted) return;
       setState(() => _profile = updated);
       _say(path == null ? '$label removed.' : '$label changed.');
     } catch (e) {
       if (mounted) _say('$e');
     } finally {
-      if (mounted) setState(() => _photoBusy = null);
+      if (mounted) setState(() => _photoBusy = false);
     }
   }
 
@@ -591,7 +578,7 @@ class _MyProfileViewState extends State<MyProfileView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildCoverCard(p),
+        _buildAccountCard(p),
         if (isFarmer && farm != null) ...[
           const SizedBox(height: 12),
           SectionCard(
@@ -721,15 +708,14 @@ class _MyProfileViewState extends State<MyProfileView> {
     );
   }
 
-  // The account card: cover and profile photos (each with a change button),
-  // name, and Edit account
-  Widget _buildCoverCard(UserProfile p) {
+  // The account card: the profile photo (with its change button), name, and
+  // Edit account
+  Widget _buildAccountCard(UserProfile p) {
     final colors = context.colors;
     final isFarmer = p.role == 'farmer';
     final farm = p.farm;
     final role = _roleLabel(p.role);
     final active = !isFarmer || farm == null || farm.isActive;
-    const coverHeight = 120.0;
     const avatar = 96.0;
 
     return Container(
@@ -738,97 +724,61 @@ class _MyProfileViewState extends State<MyProfileView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // tall enough for the half of the profile photo below the cover,
-              // so its camera button can be tapped
-              const SizedBox(height: coverHeight + avatar / 2),
-              SizedBox(
-                height: coverHeight,
-                width: double.infinity,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SizedBox(
+                width: avatar,
+                height: avatar,
                 child: Stack(
-                  fit: StackFit.expand,
+                  clipBehavior: Clip.none,
                   children: [
-                    if (p.coverUrl case final url?)
-                      Image.network(
-                        url,
-                        fit: BoxFit.cover,
-                        // offline or gone: the plain cover instead
-                        errorBuilder: (_, _, _) => const _Cover(),
-                      )
-                    else
-                      const _Cover(),
-                    if (_photoBusy == 'cover') const _PhotoBusy(),
+                    Container(
+                      width: avatar,
+                      height: avatar,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        color: colors.accent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: colors.line),
+                      ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Center(
+                            child: Text(
+                              _initials(p.fullName),
+                              style: TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w600,
+                                color: colors.onAccent,
+                              ),
+                            ),
+                          ),
+                          if (p.avatarUrl case final url?)
+                            Image.network(
+                              url,
+                              fit: BoxFit.cover,
+                              // offline or gone: the initials show through
+                              errorBuilder: (_, _, _) =>
+                                  const SizedBox.shrink(),
+                            ),
+                          if (_photoBusy) const _PhotoBusy(),
+                        ],
+                      ),
+                    ),
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: _AvatarButton(
+                        onPressed: _photoBusy ? null : _changePhoto,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              Positioned(
-                top: 10,
-                right: 10,
-                child: _CoverButton(
-                  onPressed: _photoBusy == null
-                      ? () => _changePhoto('cover')
-                      : null,
-                ),
-              ),
-              Positioned(
-                left: 16,
-                top: coverHeight - avatar / 2,
-                child: SizedBox(
-                  width: avatar,
-                  height: avatar,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        width: avatar,
-                        height: avatar,
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          color: colors.accent,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: colors.surface, width: 4),
-                        ),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Center(
-                              child: Text(
-                                _initials(p.fullName),
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.onAccent,
-                                ),
-                              ),
-                            ),
-                            if (p.avatarUrl case final url?)
-                              Image.network(
-                                url,
-                                fit: BoxFit.cover,
-                                // offline or gone: the initials show through
-                                errorBuilder: (_, _, _) =>
-                                    const SizedBox.shrink(),
-                              ),
-                            if (_photoBusy == 'avatar') const _PhotoBusy(),
-                          ],
-                        ),
-                      ),
-                      Positioned(
-                        right: -2,
-                        bottom: -2,
-                        child: _AvatarButton(
-                          onPressed: _photoBusy == null
-                              ? () => _changePhoto('avatar')
-                              : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
@@ -1001,29 +951,6 @@ class _PhotoBusy extends StatelessWidget {
   }
 }
 
-// Change cover, over the cover's top-right corner: a small white button
-class _CoverButton extends StatelessWidget {
-  const _CoverButton({required this.onPressed});
-
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return OutlinedButton.icon(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        backgroundColor: colors.surface.withValues(alpha: 0.92),
-        visualDensity: VisualDensity.compact,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-      ),
-      icon: const Icon(Icons.photo_camera_outlined, size: 16),
-      label: const Text('Change cover'),
-    );
-  }
-}
-
 // The camera badge on the profile photo's bottom-right edge
 class _AvatarButton extends StatelessWidget {
   const _AvatarButton({required this.onPressed});
@@ -1053,74 +980,6 @@ class _AvatarButton extends StatelessWidget {
       ),
     );
   }
-}
-
-// The cover: pineapple-leaf greens, drawn with gradients like the web's COVER,
-// so there is no image to load. Same colors in light and dark.
-class _Cover extends StatelessWidget {
-  const _Cover();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1F4D2B), Color(0xFF2F6B35), Color(0xFF173B22)],
-          stops: [0, 0.45, 1],
-        ),
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(-0.7, -1),
-                radius: 1.1,
-                colors: [Color(0xFF4D8A3A), Color(0x004D8A3A)],
-                stops: [0, 0.55],
-              ),
-            ),
-          ),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(0.7, -0.8),
-                radius: 0.9,
-                colors: [Color(0xFF2F7D4F), Color(0x002F7D4F)],
-                stops: [0, 0.6],
-              ),
-            ),
-          ),
-          CustomPaint(painter: _LeafStripes()),
-        ],
-      ),
-    );
-  }
-}
-
-// Thin diagonal lines over the cover, like leaf veins
-class _LeafStripes extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    void lines(double step, double slope, Color color) {
-      final paint = Paint()
-        ..color = color
-        ..strokeWidth = 2;
-      final run = size.height * slope;
-      for (var x = -run.abs(); x < size.width + run.abs(); x += step) {
-        canvas.drawLine(Offset(x, size.height), Offset(x + run, 0), paint);
-      }
-    }
-
-    lines(28, 0.47, const Color(0x12FFFFFF)); // white at 7%
-    lines(36, -0.47, const Color(0x14000000)); // black at 8%
-  }
-
-  @override
-  bool shouldRepaint(_LeafStripes oldDelegate) => false;
 }
 
 // A number tile of the Overview card
