@@ -3,17 +3,14 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/dashboard_stats.dart';
-import '../services/label_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/map_area.dart';
-import 'density_heat_layer.dart';
-import 'disease_badge.dart';
+import 'heat_halo_layer.dart';
 
-// Heat map of the places where the farmer scanned: a real density heat map,
-// the same as the website's (density_heat_layer.dart). Diseased scans add up
-// into heat from blue (few) to red (many); healthy scans only count when every
-// scan is healthy. A dot in the color of the latest condition sits on each
-// place, with a number when several scans were taken at the same spot.
+// Heat map of the places where the farmer scanned, the same as the website's
+// (heat_halo_layer.dart): every scan is a dot in its disease color with a soft
+// glow under it, colored green to red (fixed 10% bands) by the share of scans
+// nearby with a disease. Tap a dot to see what it was.
 //
 // The map is locked to Echague, like the maps on the website (see
 // lib/utils/map_area.dart). Scans taken outside it are left off the map.
@@ -61,14 +58,6 @@ class _ScanHeatMapState extends State<ScanHeatMap> {
         .toList();
     final interactive = widget.interactive;
     final height = widget.height;
-    final spots = _groupBySpot(scans);
-    // like the web: the heat is about disease, so healthy scans only count
-    // when there is nothing else
-    final diseased = scans.where((s) => s.label != 'No_Disease').toList();
-    final heatPoints = [
-      for (final s in diseased.isEmpty ? scans : diseased)
-        LatLng(s.latitude, s.longitude),
-    ];
 
     // The size is needed to know how far out the map may zoom: no further
     // than the whole of Echague, like on the website
@@ -115,18 +104,7 @@ class _ScanHeatMapState extends State<ScanHeatMap> {
               ),
             ],
           ),
-          DensityHeatLayer(points: heatPoints),
-          MarkerLayer(
-            markers: [
-              for (final spot in spots)
-                Marker(
-                  point: spot.point,
-                  width: 30,
-                  height: 30,
-                  child: _SpotDot(spot: spot),
-                ),
-            ],
-          ),
+          HeatHaloLayer(scans: scans),
           const SimpleAttributionWidget(
             source: Text('OpenStreetMap contributors'),
           ),
@@ -137,6 +115,24 @@ class _ScanHeatMapState extends State<ScanHeatMap> {
     final mapWithNotice = Stack(
       children: [
         map,
+        // the color bands, on the full-size map only (the preview is too small)
+        if (interactive)
+          Positioned(
+            top: AppSpacing.sm,
+            right: AppSpacing.sm,
+            width: 190,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: context.colors.surface,
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                  border: Border.all(color: context.colors.line),
+                ),
+                child: const HeatLegend(),
+              ),
+            ),
+          ),
         if (_tilesFailed)
           Positioned(
             left: AppSpacing.sm,
@@ -211,78 +207,3 @@ class ScanHeatMapScreen extends StatelessWidget {
 }
 
 // All the scans taken at the same place (same spot to about one meter)
-class _Spot {
-  final LatLng point;
-  final List<DashboardScan> scans = [];
-
-  _Spot(this.point);
-}
-
-List<_Spot> _groupBySpot(List<DashboardScan> scans) {
-  final spots = <String, _Spot>{};
-  for (final scan in scans) {
-    final key =
-        '${scan.latitude.toStringAsFixed(5)},${scan.longitude.toStringAsFixed(5)}';
-    spots
-        .putIfAbsent(key, () => _Spot(LatLng(scan.latitude, scan.longitude)))
-        .scans
-        .add(scan);
-  }
-  return spots.values.toList();
-}
-
-// One place on the map: a dot in the color of the latest scan there, with the
-// number of scans when there is more than one. Tap it to see what was found.
-class _SpotDot extends StatelessWidget {
-  final _Spot spot;
-
-  const _SpotDot({required this.spot});
-
-  @override
-  Widget build(BuildContext context) {
-    final latest = spot.scans.reduce(
-      (a, b) => a.scannedAt.isAfter(b.scannedAt) ? a : b,
-    );
-    final color = diseaseColors[latest.label] ?? context.colors.textMuted;
-    final count = spot.scans.length;
-
-    // "3 scans here: 2 Crown Rot, 1 No Disease"
-    final perLabel = <String, int>{};
-    for (final scan in spot.scans) {
-      perLabel[scan.label] = (perLabel[scan.label] ?? 0) + 1;
-    }
-    final details = perLabel.entries
-        .map((e) => '${e.value} ${LabelService.pretty(e.key)}')
-        .join('\n');
-    final message = count == 1 ? details : '$count scans here:\n$details';
-
-    return Tooltip(
-      triggerMode: TooltipTriggerMode.tap,
-      message: message,
-      child: Center(
-        child: Container(
-          width: count == 1 ? 18 : 26,
-          height: count == 1 ? 18 : 26,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-            // ring in the card color so the dot stands out on any part of the map
-            border: Border.all(color: context.colors.surface, width: 2),
-          ),
-          child: count == 1
-              ? null
-              : Text(
-                  '$count',
-                  // white reads well on every disease color
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-        ),
-      ),
-    );
-  }
-}

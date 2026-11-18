@@ -42,7 +42,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // The server's copy: the saved one first, then the fresh one. Empty when
   // there is nobody to ask for or it was never reached.
   List<ServerScan> _serverScans = const [];
-  Map<String, int> _summary = const {'total': 0, 'checked': 0, 'correct': 0};
   List<String> _labels = const [];
   HistoryFilter _filter = const HistoryFilter();
   bool _exporting = false;
@@ -51,16 +50,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void initState() {
     super.initState();
     _phoneScans = DatabaseHelper.instance.getAllScans();
-    _loadSummary();
     _loadServer();
     LabelService.load().then((labels) {
       if (mounted) setState(() => _labels = labels);
     }, onError: (_) {});
-  }
-
-  Future<void> _loadSummary() async {
-    final summary = await DatabaseHelper.instance.getSummary();
-    if (mounted) setState(() => _summary = summary);
   }
 
   // The saved copy right away, then the server's (stale-while-revalidate).
@@ -82,7 +75,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     setState(() {
       _phoneScans = DatabaseHelper.instance.getAllScans();
     });
-    _loadSummary();
     SyncController.instance.onLocalChange();
   }
 
@@ -330,7 +322,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // Small rounded label with an icon
   Widget _chip(String text, Color color, {IconData? icon}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -364,7 +356,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (!scan.onPhone) {
       final web = scan.imageSource == 'Web';
       return _chip(
-        web ? 'From the web' : 'From another phone',
+        web ? 'From the Web' : 'From Another Phone',
         context.colors.textMuted,
         icon: web ? Icons.language : Icons.smartphone_outlined,
       );
@@ -380,12 +372,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (!scan.isOfficerVerified) return null;
     return scan.isOfficerCorrected
         ? _chip(
-            'Corrected by officer',
+            'Corrected by Officer',
             context.colors.warning,
             icon: Icons.edit_note,
           )
         : _chip(
-            'Checked by officer',
+            'Checked by Officer',
             context.colors.success,
             icon: Icons.verified_outlined,
           );
@@ -396,13 +388,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     switch (scan.feedback) {
       case null:
         return _chip(
-          'No feedback',
+          'No Feedback',
           context.colors.textMuted,
           icon: Icons.help_outline,
         );
       case ScanFeedback.correct:
         return _chip(
-          'Marked correct',
+          'Marked Correct',
           context.colors.success,
           icon: Icons.check_circle_outline,
         );
@@ -410,7 +402,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         final actual = scan.verifiedLabel;
         return actual == null
             ? _chip(
-                'Reported wrong',
+                'Reported Wrong',
                 context.colors.warning,
                 icon: Icons.flag_outlined,
               )
@@ -471,47 +463,70 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  // The totals of the scans shown, like the stat cards on the website:
+  // Scans, Diseased, Healthy and Verified (checked by an officer)
   Widget _buildSummaryBar(List<ScanRecord> all) {
-    final officer = all.where((s) => s.isOfficerVerified).length;
-    final checked = _summary['checked'] ?? 0;
-    final correct = _summary['correct'] ?? 0;
-    final accuracy = checked == 0
-        ? '--'
-        : '${(correct / checked * 100).round()}%';
+    final shown = _filter.apply(all);
+    final healthy = shown.where((s) => s.shownLabel == 'No_Disease').length;
+    final verified = shown.where((s) => s.isOfficerVerified).length;
 
-    Widget stat(String value, String label) {
-      return Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              color: context.colors.accentText,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+    Widget stat(String label, String value, {Color? color}) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
           ),
-          Text(
-            label,
-            style: TextStyle(color: context.colors.textMuted, fontSize: 12),
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.control),
+            border: Border.all(color: context.colors.line),
           ),
-        ],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: context.colors.textMuted, fontSize: 12),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  color: color ?? context.colors.text,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: context.colors.surface,
-        border: Border(bottom: BorderSide(color: context.colors.line)),
+    const gap = SizedBox(width: AppSpacing.sm);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.page,
+        AppSpacing.md,
+        AppSpacing.page,
+        0,
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          stat('${all.length}', 'scans'),
-          stat('$checked', 'checked'),
-          stat(accuracy, 'accuracy'),
-          stat('$officer', 'by officer'),
+          stat('Scans', '${shown.length}'),
+          gap,
+          stat(
+            'Diseased',
+            '${shown.length - healthy}',
+            color: context.colors.danger,
+          ),
+          gap,
+          stat('Healthy', '$healthy', color: context.colors.success),
+          gap,
+          stat('Verified', '$verified'),
         ],
       ),
     );
@@ -562,59 +577,103 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // The date range, then one chip per condition. Scrolls sideways.
+  // The disease as a dropdown, like the website's, then the date range
   Widget _buildFilterBar() {
     final from = _filter.from;
     final to = _filter.to;
     final String dates;
     if (from == null || to == null) {
-      dates = 'Any date';
+      dates = 'Any Date';
     } else if (from == to) {
       dates = formatDate(from);
     } else {
       dates = '${formatDate(from)} – ${formatDate(to)}';
     }
 
-    Widget labelChip(String? label) {
-      return Padding(
-        padding: const EdgeInsets.only(right: AppSpacing.sm),
-        child: ChoiceChip(
-          label: Text(label == null ? 'All' : LabelService.pretty(label)),
-          selected: _filter.label == label,
-          onSelected: (_) => setState(() => _filter = _filter.withLabel(label)),
-        ),
-      );
-    }
+    Widget dot(String? label) => Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: label == null
+            ? context.colors.textMuted
+            : (diseaseColors[label] ?? context.colors.textMuted),
+        shape: BoxShape.circle,
+      ),
+    );
 
-    return SizedBox(
-      height: 56,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.page,
-          vertical: AppSpacing.sm,
-        ),
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      borderSide: BorderSide(color: context.colors.line),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.page,
+        AppSpacing.sm,
+        AppSpacing.page,
+        AppSpacing.sm,
+      ),
+      child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.sm),
-            child: from == null
-                ? ActionChip(
-                    avatar: const Icon(Icons.date_range, size: 18),
-                    label: Text(dates),
-                    onPressed: _pickDates,
-                  )
-                : InputChip(
-                    avatar: const Icon(Icons.date_range, size: 18),
-                    label: Text(dates),
-                    selected: true,
-                    onPressed: _pickDates,
-                    deleteButtonTooltipMessage: 'Any date',
-                    onDeleted: () =>
-                        setState(() => _filter = _filter.withDates(null, null)),
+          Expanded(
+            child: DropdownButtonFormField<String?>(
+              initialValue: _filter.label,
+              isExpanded: true,
+              isDense: true,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: 10,
+                ),
+                border: border,
+                enabledBorder: border,
+              ),
+              items: [
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Row(
+                    children: [
+                      dot(null),
+                      const SizedBox(width: AppSpacing.sm),
+                      const Text('All Diseases'),
+                    ],
                   ),
+                ),
+                for (final label in _labels)
+                  DropdownMenuItem<String?>(
+                    value: label,
+                    child: Row(
+                      children: [
+                        dot(label),
+                        const SizedBox(width: AppSpacing.sm),
+                        Flexible(
+                          child: Text(
+                            LabelService.pretty(label),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+              onChanged: (value) =>
+                  setState(() => _filter = _filter.withLabel(value)),
+            ),
           ),
-          labelChip(null),
-          for (final label in _labels) labelChip(label),
+          const SizedBox(width: AppSpacing.sm),
+          OutlinedButton.icon(
+            onPressed: _pickDates,
+            icon: const Icon(Icons.date_range, size: 18),
+            label: Text(dates),
+          ),
+          if (from != null)
+            IconButton(
+              tooltip: 'Any Date',
+              icon: const Icon(Icons.close, size: 18),
+              onPressed: () =>
+                  setState(() => _filter = _filter.withDates(null, null)),
+            ),
         ],
       ),
     );
@@ -717,60 +776,116 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
+  // One scan, compact: the photo, the condition with its color, confidence and
+  // date, then small tags; this phone's scans have a menu to edit or delete.
   Widget _buildTile(ScanRecord scan) {
     final officer = _officerChip(scan);
+    final label = scan.shownLabel;
+    final color = diseaseColors[label] ?? context.colors.textMuted;
     return TileCard(
-      child: ListTile(
+      child: InkWell(
         onTap: () => _openDetail(scan),
-        leading: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.control),
-          child: _thumbnail(scan),
-        ),
-        title: Align(
-          alignment: Alignment.centerLeft,
-          child: DiseaseBadge(label: scan.shownLabel),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${(scan.confidence * 100).toStringAsFixed(0)}% confidence'
-              '  ·  ${formatDateTime(scan.scannedAt)}',
-              style: TextStyle(color: context.colors.textMuted, fontSize: 12),
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                _statusChip(scan),
-                ?officer,
-                if (scan.onPhone || scan.hasFeedback) _feedbackChip(scan),
-              ],
-            ),
-          ],
-        ),
-        // only this phone's own scans can be changed here
-        trailing: !scan.onPhone
-            ? null
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: 'Verify or Edit',
-                    icon: const Icon(Icons.edit_outlined),
-                    onPressed: () => _openEditor(scan),
-                  ),
-                  IconButton(
-                    tooltip: 'Delete',
-                    icon: Icon(
-                      Icons.delete_outline,
-                      color: context.colors.danger,
-                    ),
-                    onPressed: () => _deleteScan(scan),
-                  ),
-                ],
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.md,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.control),
+                child: _thumbnail(scan),
               ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            LabelService.pretty(label),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${(scan.confidence * 100).toStringAsFixed(0)}%'
+                      '  ·  ${formatDateTime(scan.scannedAt)}',
+                      style: TextStyle(
+                        color: context.colors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: [
+                        _statusChip(scan),
+                        ?officer,
+                        if (scan.onPhone || scan.hasFeedback)
+                          _feedbackChip(scan),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // only this phone's own scans can be changed here
+              if (scan.onPhone)
+                PopupMenuButton<String>(
+                  tooltip: 'More',
+                  icon: Icon(Icons.more_vert, color: context.colors.textMuted),
+                  onSelected: (choice) =>
+                      choice == 'edit' ? _openEditor(scan) : _deleteScan(scan),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: ListTile(
+                        leading: Icon(Icons.edit_outlined),
+                        title: Text('Verify or Edit'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        leading: Icon(
+                          Icons.delete_outline,
+                          color: context.colors.danger,
+                        ),
+                        title: Text(
+                          'Delete',
+                          style: TextStyle(color: context.colors.danger),
+                        ),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
