@@ -250,7 +250,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         final scans = snapshot.data ?? [];
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Scan History'),
+            title: const Text('History'),
             actions: [
               if (_exporting)
                 const Padding(

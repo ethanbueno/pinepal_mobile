@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../models/scan_record.dart';
 import '../services/database_helper.dart';
 import '../theme/app_colors.dart';
-import '../theme/theme_controller.dart';
 import '../utils/format.dart';
 import '../utils/image_size.dart';
 import '../widgets/tile_card.dart';
@@ -268,7 +267,6 @@ class _HomeTabState extends State<_HomeTab> {
                     ],
                   ),
                 ),
-                const _ThemeToggle(),
               ],
             ),
             const SizedBox(height: AppSpacing.section),
@@ -457,26 +455,6 @@ class _NoScansYet extends StatelessWidget {
             style: TextStyle(fontSize: 13, color: context.colors.textMuted),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// Light/dark switch, same outline icon button as the web
-class _ThemeToggle extends StatelessWidget {
-  const _ThemeToggle();
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return IconButton(
-      tooltip: dark ? 'Switch to light mode' : 'Switch to dark mode',
-      onPressed: () =>
-          ThemeController.instance.toggle(Theme.of(context).brightness),
-      icon: Icon(dark ? Icons.light_mode_outlined : Icons.dark_mode_outlined),
-      style: IconButton.styleFrom(
-        side: BorderSide(color: context.colors.line),
-        backgroundColor: dark ? context.colors.surface2 : context.colors.canvas,
       ),
     );
   }

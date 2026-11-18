@@ -24,7 +24,7 @@ class _GuideScreenState extends State<GuideScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Disease Guide')),
+      appBar: AppBar(title: const Text('Guide')),
       body: FutureBuilder<List<RemediationProtocol>>(
         future: _protocols,
         builder: (context, snapshot) {
