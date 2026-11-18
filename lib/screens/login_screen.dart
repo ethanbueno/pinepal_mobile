@@ -21,8 +21,31 @@ class _LoginScreenState extends State<LoginScreen> {
   final _password = TextEditingController();
 
   bool _busy = false;
+  bool _waking = false; // the server is slow to answer, so it is waking up
   bool _showPassword = false;
   String? _error;
+
+  // Start waking the server now, so it is likely up by the time the form is
+  // filled in
+  @override
+  void initState() {
+    super.initState();
+    ApiClient.warmUp();
+  }
+
+  // Waits for a sleeping server to wake before the real call, so the call
+  // itself does not time out
+  Future<void> _wakeServer(ApiClient api) async {
+    try {
+      await api.wakeUp(
+        onSlow: () {
+          if (mounted) setState(() => _waking = true);
+        },
+      );
+    } finally {
+      if (mounted) setState(() => _waking = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -46,7 +69,9 @@ class _LoginScreenState extends State<LoginScreen> {
       // This phone's own farmer ID (if it synced before sign in) joins the
       // account: it becomes the account's farmer ID, or its scans move into
       // the one the account already has
-      final session = await ApiClient().login(
+      final api = ApiClient();
+      await _wakeServer(api);
+      final session = await api.login(
         username,
         _password.text,
         deviceToken: AuthController.instance.phoneFarmer?.token,
@@ -60,6 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
+        _waking = false;
         _error = e.message;
       });
     }
@@ -147,6 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     busy: _busy,
                     onPressed: _busy ? null : _signIn,
                   ),
+                  if (_busy && _waking) const AuthWakingNote(),
                   const SizedBox(height: AppSpacing.md),
                   TextButton(
                     onPressed: _busy ? null : _openRegister,

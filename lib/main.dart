@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/intro/splash_screen.dart';
+import 'services/api_client.dart';
 import 'services/app_settings.dart';
 import 'services/auth_controller.dart';
 import 'services/map_tile_cache.dart';
@@ -22,6 +23,9 @@ Future<void> main() async {
   ]);
   runApp(const PinePalApp());
   SyncController.instance.init();
+  // The free server sleeps when unused; start waking it so sign in, sync and
+  // the online dashboard do not wait as long. Offline, this just fails quietly.
+  ApiClient.warmUp();
 }
 
 class PinePalApp extends StatelessWidget {

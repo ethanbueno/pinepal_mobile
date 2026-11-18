@@ -43,6 +43,80 @@ class ApiClient {
   static const _timeout = Duration(seconds: 20);
   static const _uploadTimeout = Duration(seconds: 60);
 
+  // The server runs on a free Render plan: it sleeps after 15 minutes without
+  // calls and then needs about a minute to wake up, longer than _timeout. So
+  // login and sign up wake it first (wakeUp), and the app pings it on launch.
+  // When it last answered, for each server address (any ApiClient counts).
+  static final Map<String, DateTime> _lastAnswered = {};
+  static final Map<String, Future<void>> _waking = {};
+  static const _stillAwake = Duration(minutes: 10);
+  static const _wakeLimit = Duration(seconds: 100);
+  static const _wakeAttempt = Duration(seconds: 30);
+
+  // Starts waking the server without waiting, for example when the app opens,
+  // so it is up by the time the farmer signs in. Failures are ignored.
+  static void warmUp({ApiClient? api}) {
+    unawaited((api ?? ApiClient()).wakeUp().then((_) {}, onError: (_) {}));
+  }
+
+  // Waits until the server answers, for up to about 100 seconds. Returns at
+  // once if it answered in the last few minutes. onSlow is called once if the
+  // server has not answered after 3 seconds, so the screen can say it is
+  // waking up. Throws ApiException when there is no connection or the server
+  // never answers.
+  Future<void> wakeUp({void Function()? onSlow}) async {
+    final base = _baseUrl();
+    final last = _lastAnswered[base];
+    if (last != null && DateTime.now().difference(last) < _stillAwake) return;
+
+    final slow = onSlow == null
+        ? null
+        : Timer(const Duration(seconds: 3), onSlow);
+    try {
+      await (_waking[base] ??= _wake(base).whenComplete(() {
+        _waking.remove(base); // not returned: whenComplete would wait on it
+      }));
+    } finally {
+      slow?.cancel();
+    }
+  }
+
+  Future<void> _wake(String base) async {
+    final uri = _uri('/');
+    final clock = Stopwatch()..start();
+    while (true) {
+      final left = _wakeLimit - clock.elapsed;
+      try {
+        final response = await _client
+            .get(uri)
+            .timeout(left < _wakeAttempt ? left : _wakeAttempt);
+        // 502, 503 and 504 come from Render while the server is starting
+        if (response.statusCode < 500) {
+          _lastAnswered[base] = DateTime.now();
+          return;
+        }
+      } on TimeoutException {
+        // still waking up, ask again
+      } on SocketException {
+        throw _noConnection;
+      } on http.ClientException {
+        throw _noConnection;
+      }
+      if (clock.elapsed + const Duration(seconds: 3) >= _wakeLimit) {
+        throw const ApiException(
+          'The server is still waking up. Wait a minute and try again.',
+          offline: true,
+        );
+      }
+      await Future<void>.delayed(const Duration(seconds: 3));
+    }
+  }
+
+  static const _noConnection = ApiException(
+    'Cannot reach the server. Check your internet connection and try again.',
+    offline: true,
+  );
+
   // Same login as the web, but the token lasts 30 days, so a farmer who scans
   // offline for days can still sync without signing in again. With the phone's
   // own farmer ID token, the server connects that farmer ID and its scans to
@@ -230,19 +304,17 @@ class ApiClient {
       response = await http.Response.fromStream(streamed).timeout(timeout);
     } on TimeoutException {
       throw const ApiException(
-        'The server took too long to answer.',
+        'The server took too long to answer. Try again in a moment.',
         offline: true,
       );
     } on SocketException {
-      throw const ApiException(
-        'Cannot reach the server. Check your internet connection and try again.',
-        offline: true,
-      );
+      throw _noConnection;
     } on http.ClientException {
-      throw const ApiException(
-        'Cannot reach the server. Check your internet connection and try again.',
-        offline: true,
-      );
+      throw _noConnection;
+    }
+
+    if (response.statusCode < 500) {
+      _lastAnswered[_baseUrl()] = DateTime.now();
     }
 
     Map<String, dynamic> json = {};
@@ -256,6 +328,15 @@ class ApiClient {
     if (response.statusCode >= 200 && response.statusCode < 300) return json;
 
     final message = json['error'] ?? json['message'];
+    // Render's own page while the server starts up or restarts
+    if (const [502, 503, 504].contains(response.statusCode) &&
+        message is! String) {
+      throw ApiException(
+        'The server is starting up. Wait a minute and try again.',
+        statusCode: response.statusCode,
+        offline: true,
+      );
+    }
     throw ApiException(
       message is String && message.isNotEmpty
           ? message

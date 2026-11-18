@@ -29,8 +29,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _confirm = TextEditingController();
 
   bool _busy = false;
+  bool _waking = false; // the server is slow to answer, so it is waking up
   bool _showPassword = false; // the eye button, for both password boxes
   String? _error;
+
+  // Start waking the server now, so it is likely up by the time the form is
+  // filled in
+  @override
+  void initState() {
+    super.initState();
+    ApiClient.warmUp();
+  }
+
+  // Waits for a sleeping server to wake before the real call, so the call
+  // itself does not time out
+  Future<void> _wakeServer(ApiClient api) async {
+    try {
+      await api.wakeUp(
+        onSlow: () {
+          if (mounted) setState(() => _waking = true);
+        },
+      );
+    } finally {
+      if (mounted) setState(() => _waking = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -72,6 +95,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
     try {
       final api = ApiClient();
+      await _wakeServer(api);
       final deviceToken = AuthController.instance.phoneFarmer?.token;
       await api.register(
         fullName: fullName,
@@ -93,6 +117,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       setState(() {
         _busy = false;
+        _waking = false;
         _error = e.message;
       });
     }
@@ -211,6 +236,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     busy: _busy,
                     onPressed: _busy ? null : _register,
                   ),
+                  if (_busy && _waking) const AuthWakingNote(),
                   const SizedBox(height: AppSpacing.md),
                   // goes back to the sign in screen, which opened this one
                   TextButton(

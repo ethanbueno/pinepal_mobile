@@ -18,13 +18,16 @@ class AppSettings extends ChangeNotifier {
   // The server is part of the app, not a setting for farmers. It is chosen when
   // the app is built:
   //   flutter run --dart-define=PINEPAL_API_URL=https://your-server
-  // Without it the app talks to a server on the same computer: 10.0.2.2 is how
-  // the Android emulator reaches the computer it runs on. A real phone needs
-  // the laptop's Wi-Fi address instead, e.g. http://192.168.1.5:5000.
+  // Without it, release builds (the APK farmers install) use the live server
+  // on Render, so a build made without the flag still works. Debug builds talk
+  // to a server on the same computer: 10.0.2.2 is how the Android emulator
+  // reaches the computer it runs on. A real phone needs the laptop's Wi-Fi
+  // address instead, e.g. http://192.168.1.5:5000.
   // Developers can override it in Settings > Developer (see developerOptions).
+  static const liveServerUrl = 'https://pinepal-api-rebe.onrender.com';
   static const defaultServerUrl = String.fromEnvironment(
     'PINEPAL_API_URL',
-    defaultValue: 'http://10.0.2.2:5000',
+    defaultValue: kReleaseMode ? liveServerUrl : 'http://10.0.2.2:5000',
   );
 
   static const _serverKey = 'server_url';

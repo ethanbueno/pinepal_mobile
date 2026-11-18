@@ -379,4 +379,69 @@ void main() {
     );
     expect(seen.body, contains('fake-photo-bytes'));
   });
+
+  group('waking a sleeping server', () {
+    ApiClient wakeClient(String host, MockClientHandler handler) =>
+        ApiClient(client: MockClient(handler), baseUrl: () => 'http://$host');
+
+    test('asks again while Render is starting it, then goes on', () async {
+      var calls = 0;
+      var slow = false;
+      final api = wakeClient('wake-retry.test', (request) async {
+        expect(request.url.path, '/');
+        calls++;
+        return calls == 1
+            ? http.Response('<html>starting</html>', 503)
+            : http.Response('{"message":"PinePal API is running"}', 200);
+      });
+
+      await api.wakeUp(onSlow: () => slow = true);
+
+      expect(calls, 2);
+      expect(slow, isTrue); // the 3 second pause between tries passed
+    });
+
+    test('does not ping again when the server just answered', () async {
+      var calls = 0;
+      final api = wakeClient('wake-once.test', (_) async {
+        calls++;
+        return http.Response('{}', 200);
+      });
+
+      await api.wakeUp();
+      await api.wakeUp();
+
+      expect(calls, 1);
+    });
+
+    test('no connection fails at once instead of waiting', () async {
+      final api = wakeClient(
+        'wake-offline.test',
+        (_) async => throw const SocketException('down'),
+      );
+
+      await expectLater(
+        api.wakeUp(),
+        throwsA(isA<ApiException>().having((e) => e.offline, 'offline', true)),
+      );
+    });
+
+    test('a Render error page reads as the server starting up', () async {
+      final api = wakeClient(
+        'wake-page.test',
+        (_) async => http.Response('<html>Bad gateway</html>', 502),
+      );
+
+      await expectLater(
+        api.login('a', 'b'),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            contains('starting up'),
+          ),
+        ),
+      );
+    });
+  });
 }

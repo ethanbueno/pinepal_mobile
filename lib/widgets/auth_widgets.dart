@@ -173,6 +173,24 @@ class AuthError extends StatelessWidget {
   }
 }
 
+// Shown under the button while the server wakes up from sleep (the free
+// server sleeps when nobody uses it and takes about a minute to start)
+class AuthWakingNote extends StatelessWidget {
+  const AuthWakingNote({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: Text(
+        'Waking up the server. This can take up to a minute the first time.',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 13, color: context.colors.textMuted),
+      ),
+    );
+  }
+}
+
 // The password rules under a new-password box, ticked off while typing.
 // Hidden until something is typed. Pass [confirm] to add a "Passwords match"
 // line once the confirm box has something in it.
