@@ -5,6 +5,7 @@ import '../services/auth_controller.dart';
 import '../services/sync_controller.dart';
 import '../theme/app_colors.dart';
 import '../widgets/auth_widgets.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 // Sign in with the same account as the web dashboard. Scanning never needs
@@ -91,6 +92,22 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // Comes back with the server's message once the password was changed
+  Future<void> _openForgotPassword() async {
+    final message = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+    );
+    if (message == null || !mounted) return;
+    setState(() {
+      _error = null;
+      _password.clear();
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   // Signing up also signs in, so this screen is done too
   Future<void> _openRegister() async {
     final signedIn = await Navigator.push<bool>(
@@ -163,11 +180,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           setState(() => _showPassword = !_showPassword),
                     ),
                   ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _busy ? null : _openForgotPassword,
+                      child: const Text('Forgot password?'),
+                    ),
+                  ),
                   if (_error != null) ...[
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.xs),
                     AuthError(message: _error!),
                   ],
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.md),
                   PillButton(
                     text: 'Log in',
                     busy: _busy,

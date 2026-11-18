@@ -29,6 +29,21 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+// What the server said to "forgot password"
+class PasswordResetStart {
+  final bool emailedCode; // true: a code was emailed; false: resetToken is set
+  final String? resetToken;
+  final String? username; // direct only: the account the email belongs to
+  final String? message;
+
+  const PasswordResetStart({
+    required this.emailedCode,
+    this.resetToken,
+    this.username,
+    this.message,
+  });
+}
+
 // The calls the app makes to the PinePal Flask backend (backend/mobile_sync.py
 // and backend/web_auth.py in the web project).
 class ApiClient {
@@ -154,6 +169,39 @@ class ApiClient {
       'role': 'farmer',
       'device_token': ?deviceToken,
     });
+  }
+
+  // Forgot password, step 1 (backend/password_reset.py in the web project).
+  // The server is set to one of two ways: "direct" answers with a reset token
+  // straight away, "code" emails a 6-digit code.
+  Future<PasswordResetStart> requestPasswordReset(String email) async {
+    final json = await _sendJson('POST', '/api/auth/forgot-password', {
+      'email': email,
+    });
+    return PasswordResetStart(
+      emailedCode: json['mode'] == 'code',
+      resetToken: json['reset_token'] as String?,
+      username: json['username'] as String?,
+      message: json['message'] as String?,
+    );
+  }
+
+  // Forgot password, step 2: the new password, with the reset token (direct)
+  // or the email and its code. Returns the server's message.
+  Future<String> resetPassword({
+    required String newPassword,
+    String? resetToken,
+    String? email,
+    String? code,
+  }) async {
+    final json = await _sendJson('POST', '/api/auth/reset-password', {
+      'new_password': newPassword,
+      'reset_token': ?resetToken,
+      'email': ?email,
+      'code': ?code,
+    });
+    return json['message'] as String? ??
+        'Your password was changed. Sign in with the new one.';
   }
 
   // Gives this phone its own farmer ID, for syncing before anyone signs in

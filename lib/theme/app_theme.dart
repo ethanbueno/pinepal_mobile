@@ -185,6 +185,77 @@ ThemeData buildTheme(Brightness brightness) {
       ),
     ),
 
+    // The calendar in PinePal's own style, like the web's DatePicker
+    // (src/components/DatePicker.jsx): the page colors, rounded day cells,
+    // the chosen days in amber with dark text, today ringed in amber, and
+    // the days in between a soft amber.
+    datePickerTheme: () {
+      final day = WidgetStateProperty.resolveWith<Color?>((states) {
+        if (states.contains(WidgetState.selected)) return p.onAccent;
+        if (states.contains(WidgetState.disabled)) {
+          return p.textMuted.withValues(alpha: 0.4);
+        }
+        return p.text;
+      });
+      final dayFill = WidgetStateProperty.resolveWith<Color?>(
+        (states) => states.contains(WidgetState.selected) ? p.accent : null,
+      );
+      final cellShape = WidgetStatePropertyAll<OutlinedBorder>(
+        RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
+      );
+      final heading = TextStyle(
+        fontFamily: 'Geist',
+        fontWeight: FontWeight.w600,
+        color: p.text,
+      );
+      return DatePickerThemeData(
+        backgroundColor: p.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          side: BorderSide(color: p.line),
+        ),
+        headerBackgroundColor: p.surface,
+        headerForegroundColor: p.text,
+        headerHeadlineStyle: heading.copyWith(fontSize: 24),
+        headerHelpStyle: TextStyle(color: p.textMuted, fontSize: 13),
+        weekdayStyle: TextStyle(
+          color: p.textMuted,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+        dayStyle: const TextStyle(fontSize: 14),
+        dayForegroundColor: day,
+        dayBackgroundColor: dayFill,
+        dayShape: cellShape,
+        todayForegroundColor: WidgetStateProperty.resolveWith(
+          (states) =>
+              states.contains(WidgetState.selected) ? p.onAccent : p.accentText,
+        ),
+        todayBackgroundColor: dayFill,
+        todayBorder: BorderSide(color: p.accent),
+        yearForegroundColor: day,
+        yearBackgroundColor: dayFill,
+        yearShape: cellShape,
+        dividerColor: p.line,
+        rangePickerBackgroundColor: p.surface,
+        rangePickerSurfaceTintColor: Colors.transparent,
+        rangePickerHeaderBackgroundColor: p.surface,
+        rangePickerHeaderForegroundColor: p.text,
+        rangePickerHeaderHeadlineStyle: heading.copyWith(fontSize: 22),
+        rangePickerHeaderHelpStyle: TextStyle(color: p.textMuted, fontSize: 13),
+        rangeSelectionBackgroundColor: p.accentSoft,
+        rangeSelectionOverlayColor: WidgetStatePropertyAll(p.accentSoft),
+        cancelButtonStyle: TextButton.styleFrom(foregroundColor: p.textMuted),
+        confirmButtonStyle: TextButton.styleFrom(
+          foregroundColor: p.accentText,
+          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      );
+    }(),
+
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: p.surface,
       modalBackgroundColor: p.surface,

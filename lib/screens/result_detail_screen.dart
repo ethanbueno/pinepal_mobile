@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
+import '../models/dashboard_stats.dart';
 import '../models/remediation_protocol.dart';
 import '../models/scan_record.dart';
 import '../services/classifier_service.dart';
@@ -11,9 +13,12 @@ import '../services/protocol_service.dart';
 import '../services/server_scans.dart';
 import '../theme/app_colors.dart';
 import '../utils/format.dart';
+import '../utils/map_area.dart';
 import '../utils/image_size.dart';
 import '../widgets/confidence_bar.dart';
 import '../widgets/protocol_cards.dart';
+import '../widgets/scan_heat_map.dart';
+import '../widgets/section_card.dart';
 import 'edit_scan_screen.dart';
 import '../widgets/pinepal_loader.dart';
 
@@ -111,6 +116,10 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
                 _buildSummaryCard(protocol),
                 const SizedBox(height: AppSpacing.md),
                 _buildOfficerCard(),
+                if (_scan.hasGps) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  _buildMapCard(),
+                ],
                 const SizedBox(height: AppSpacing.lg),
                 PathogenCard(protocol: protocol),
                 const SizedBox(height: AppSpacing.md),
@@ -190,6 +199,64 @@ class _ResultDetailScreenState extends State<ResultDetailScreen> {
       // as wide as the screen, not the full camera size
       cacheWidth: screenWidthPixels(context),
       errorBuilder: (context, error, stack) => _placeholder(),
+    );
+  }
+
+  // Where the scan was taken, like the map on the web's scan detail. A still
+  // preview, so dragging scrolls the report; tapping opens the full map.
+  // Uses the same saved map tiles as the dashboard, so places seen before
+  // show offline.
+  Widget _buildMapCard() {
+    final scan = _scan;
+    final spot = DashboardScan(
+      label: scan.shownLabel,
+      scannedAt: scan.scannedAt,
+      latitude: scan.latitude,
+      longitude: scan.longitude,
+    );
+    final point = LatLng(scan.latitude, scan.longitude);
+    final inTown = isInLockedArea(scan.latitude, scan.longitude);
+
+    return SectionCard(
+      title: 'Where it was scanned',
+      children: [
+        if (!inTown)
+          Text(
+            'This scan was taken outside $lockedAreaName, so it is not on the '
+            'map. GPS: ${scan.latitude.toStringAsFixed(4)}, '
+            '${scan.longitude.toStringAsFixed(4)}',
+            style: TextStyle(color: context.colors.textMuted, fontSize: 13),
+          )
+        else
+          Stack(
+            children: [
+              ScanHeatMap(
+                scans: [spot],
+                height: 200,
+                interactive: false,
+                focus: point,
+              ),
+              Positioned.fill(
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ScanHeatMapScreen(
+                          scans: [spot],
+                          title: 'Where it was scanned',
+                          focus: point,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+      ],
     );
   }
 

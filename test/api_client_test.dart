@@ -444,4 +444,76 @@ void main() {
       );
     });
   });
+
+  group('forgot password', () {
+    test('direct mode answers with a reset token', () async {
+      late http.Request seen;
+      final api = clientFor((request) async {
+        seen = request;
+        return http.Response(
+          jsonEncode({
+            'mode': 'direct',
+            'reset_token': 'tok',
+            'username': 'juan',
+          }),
+          200,
+        );
+      });
+      final start = await api.requestPasswordReset('juan@example.com');
+      expect(seen.url.path, '/api/auth/forgot-password');
+      expect(jsonDecode(seen.body), {'email': 'juan@example.com'});
+      expect(start.emailedCode, isFalse);
+      expect(start.resetToken, 'tok');
+      expect(start.username, 'juan');
+    });
+
+    test('code mode says a code was emailed', () async {
+      final api = clientFor(
+        (request) async => http.Response(
+          jsonEncode({'mode': 'code', 'message': 'We sent a code'}),
+          200,
+        ),
+      );
+      final start = await api.requestPasswordReset('juan@example.com');
+      expect(start.emailedCode, isTrue);
+      expect(start.message, 'We sent a code');
+    });
+
+    test('an unknown email shows the server message', () async {
+      final api = clientFor(
+        (request) async => http.Response(
+          jsonEncode({'error': 'No account uses this email.'}),
+          404,
+        ),
+      );
+      expect(
+        () => api.requestPasswordReset('nobody@example.com'),
+        throwsA(
+          isA<ApiException>().having(
+            (e) => e.message,
+            'message',
+            'No account uses this email.',
+          ),
+        ),
+      );
+    });
+
+    test('reset sends only what the mode needs', () async {
+      late http.Request seen;
+      final api = clientFor((request) async {
+        seen = request;
+        return http.Response(jsonEncode({'message': 'Changed'}), 200);
+      });
+      final message = await api.resetPassword(
+        newPassword: 'New!Pass1',
+        resetToken: 'tok',
+      );
+      expect(seen.url.path, '/api/auth/reset-password');
+      expect(jsonDecode(seen.body), {
+        'new_password': 'New!Pass1',
+        'reset_token': 'tok',
+      });
+      expect(message, 'Changed');
+    });
+  });
 }
