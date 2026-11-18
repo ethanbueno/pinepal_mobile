@@ -253,6 +253,34 @@ class ApiClient {
     );
   }
 
+  // A new profile photo (kind 'avatar') or cover photo (kind 'cover'), a JPG
+  // or PNG on the phone. The server keeps it on Cloudinary and returns the
+  // updated profile.
+  Future<UserProfile> uploadProfilePhoto({
+    required String token,
+    required String kind,
+    required String path,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      _uri('/api/profile/photo/$kind'),
+    );
+    request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(await http.MultipartFile.fromPath('photo', path));
+    return UserProfile.fromJson(await _send(request, _uploadTimeout));
+  }
+
+  // Removes the profile or cover photo; the Account tab goes back to the
+  // initials and the plain cover
+  Future<UserProfile> removeProfilePhoto({
+    required String token,
+    required String kind,
+  }) async {
+    return UserProfile.fromJson(
+      await _sendJson('DELETE', '/api/profile/photo/$kind', null, token),
+    );
+  }
+
   Future<void> changePassword({
     required String token,
     required String currentPassword,

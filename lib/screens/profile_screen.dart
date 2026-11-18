@@ -12,9 +12,9 @@ import '../widgets/section_card.dart';
 import 'login_screen.dart';
 import 'settings_screen.dart';
 
-// The Profile tab is about the farmer: signed in, their full profile from the
-// server (the same as the web's My profile, with Edit profile), what is waiting
-// to sync, and Log out. Signed out, a Sign in card instead of the profile. Preferences (sync mode, dark mode...) are in Settings, the
+// The Account tab is about the farmer: signed in, their full account from the
+// server (the same as the web's Settings > Account, with Edit account), what is waiting
+// to sync, and Log out. Signed out, a Sign in card instead of the account. Preferences (sync mode, dark mode...) are in Settings, the
 // gear in the top bar.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
@@ -66,7 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('Account'),
         actions: [
           IconButton(
             tooltip: 'Settings',
@@ -83,7 +83,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             padding: const EdgeInsets.all(AppSpacing.page),
             children: [
               if (_auth.user case final user?)
-                // a new account loads its own profile
+                // a new account loads its own details
                 MyProfileView(
                   key: ValueKey(user.id),
                   api: widget.api,

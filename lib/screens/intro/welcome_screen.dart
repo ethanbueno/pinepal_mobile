@@ -11,7 +11,7 @@ import 'intro_widgets.dart';
 // The last intro screen: heading, a slowly scrolling row of images, sign in and
 // register. Signing in or registering opens the app's own screens and then goes
 // to the home screen. "Skip" goes there without an account: scanning works
-// without one, and the farmer can sign in later from Profile. Either way the
+// without one, and the farmer can sign in later from Account. Either way the
 // intro is done and does not show again.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});

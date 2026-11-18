@@ -157,7 +157,7 @@ void main() {
       settings: AppSettings(),
     );
 
-    expect(find.text('Account'), findsOneWidget);
+    expect(find.text('Account'), findsNWidgets(2)); // the title and the card
     expect(find.text('My farm'), findsNothing); // hidden for now
     expect(find.text('Sync'), findsOneWidget);
     expect(find.byTooltip('Settings'), findsOneWidget);
@@ -178,7 +178,7 @@ void main() {
       expect(find.text('@juan'), findsWidgets); // chip and Personal info
       expect(find.text('JD'), findsOneWidget);
       expect(find.text('Personal info'), findsOneWidget);
-      expect(find.text('Edit profile'), findsOneWidget);
+      expect(find.text('Edit account'), findsOneWidget);
       expect(find.text('View my profile'), findsNothing);
       expect(find.text('Sync'), findsOneWidget);
       expect(find.text('Log out'), findsOneWidget);

@@ -10,6 +10,9 @@ class UserProfile {
   municipality; // users.municipality; a farmer's matches the farm's
   final DateTime? createdAt;
   final ProfileFarm? farm; // farmers only, and only once a farm is linked
+  // The photos on the Account tab (Cloudinary URLs), null until one is chosen
+  final String? avatarUrl;
+  final String? coverUrl;
 
   const UserProfile({
     required this.fullName,
@@ -19,6 +22,8 @@ class UserProfile {
     this.email,
     this.createdAt,
     this.farm,
+    this.avatarUrl,
+    this.coverUrl,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -32,9 +37,14 @@ class UserProfile {
       municipality: account['municipality'] as String? ?? '',
       createdAt: DateTime.tryParse(account['created_at'] as String? ?? ''),
       farm: farm is Map<String, dynamic> ? ProfileFarm.fromJson(farm) : null,
+      avatarUrl: _url(account['avatar_url']),
+      coverUrl: _url(account['cover_url']),
     );
   }
 }
+
+String? _url(Object? value) =>
+    value is String && value.isNotEmpty ? value : null;
 
 class ProfileFarm {
   final String farmerId;

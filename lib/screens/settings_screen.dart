@@ -11,7 +11,7 @@ import 'help_screen.dart';
 
 const appVersion = '1.0.0';
 
-// Preferences for the whole app. Opened from the gear on the Profile tab.
+// Preferences for the whole app. Opened from the gear on the Account tab.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, this.settings, this.sync});
 
@@ -102,7 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Text(
           automatic
               ? 'Scans are sent by themselves when there is a connection.'
-              : 'Scans are sent only when you tap Sync now on the Profile tab.',
+              : 'Scans are sent only when you tap Sync now on the Account tab.',
           style: TextStyle(color: context.colors.textMuted, fontSize: 13),
         ),
         if (automatic) ...[

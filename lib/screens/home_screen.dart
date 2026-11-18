@@ -18,7 +18,7 @@ import 'result_detail_screen.dart';
 import 'scanner_screen.dart';
 
 // The main screen after the app starts: bottom navigation bar with
-// Home, History, Guide, Profile and a big Scan button in the middle.
+// Home, History, Guide, Account and a big Scan button in the middle.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -177,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 _navItem(2, Icons.menu_book_outlined, Icons.menu_book, 'Guide'),
-                _navItem(3, Icons.person_outline, Icons.person, 'Profile'),
+                _navItem(3, Icons.person_outline, Icons.person, 'Account'),
               ],
             ),
           ),

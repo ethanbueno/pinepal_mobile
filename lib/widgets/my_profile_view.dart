@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../models/user_profile.dart';
 import '../services/api_client.dart';
@@ -14,7 +15,7 @@ import 'pinepal_loader.dart';
 
 const _echagueOnly = 'Echague only for now';
 
-// What Edit profile can change, one at a time, same as the web (EDITABLE in
+// What Edit account can change, one at a time, same as the web (EDITABLE in
 // src/pages/Profile.jsx). secure = a sign-in detail, which needs the current
 // password first (the server checks it too). farmOnly = farmers with a farm.
 class _Editable {
@@ -39,18 +40,27 @@ const _editable = [
   _Editable('farm_size_ha', 'Farm size', farmOnly: true),
 ];
 
-// The signed-in user's own details, from the server, laid out like the web's
-// My profile: a cover with the name, Overview and Farm for farmers, then
-// Personal info. Edit profile lists what can be changed; each detail is
-// changed on its own and only that detail is sent. It sits at the top of the
-// Profile tab, as a column of cards.
+// The signed-in user's own details, from the server: the cover and profile
+// photos with the name (both can be changed, like Settings > Account on the
+// web), Overview and Farm for farmers, then Personal info. Edit account lists
+// what can be changed; each detail is changed on its own and only that detail
+// is sent. It sits at the top of the Account tab, as a column of cards.
 class MyProfileView extends StatefulWidget {
-  const MyProfileView({super.key, this.api, this.auth, this.settings});
+  const MyProfileView({
+    super.key,
+    this.api,
+    this.auth,
+    this.settings,
+    this.pickPhoto,
+  });
 
   // Leave empty to use the shared ones
   final ApiClient? api;
   final AuthController? auth;
   final AppSettings? settings;
+  // Picks a photo and returns its path on the phone (null when cancelled).
+  // Leave empty to use the camera or gallery; tests pass their own.
+  final Future<String?> Function(ImageSource source, String kind)? pickPhoto;
 
   @override
   State<MyProfileView> createState() => _MyProfileViewState();
@@ -71,6 +81,9 @@ class _MyProfileViewState extends State<MyProfileView> {
   final _current = TextEditingController(); // for sign-in details
   String? _formError;
   bool _saving = false;
+
+  // The photo being uploaded or removed ('avatar' / 'cover'), or null
+  String? _photoBusy;
 
   @override
   void initState() {
@@ -100,6 +113,106 @@ class _MyProfileViewState extends State<MyProfileView> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+  // Opens the camera or gallery. The photo is shrunk on the phone first, so a
+  // big camera photo uploads quickly on a farm's mobile data.
+  Future<String?> _pick(ImageSource source, String kind) async {
+    if (widget.pickPhoto case final pick?) return pick(source, kind);
+    final avatar = kind == 'avatar';
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: avatar ? 1024 : 2048,
+      maxHeight: avatar ? 1024 : 2048,
+      imageQuality: 85,
+      preferredCameraDevice: avatar ? CameraDevice.front : CameraDevice.rear,
+    );
+    return picked?.path;
+  }
+
+  // The sheet behind a photo's change button: camera, gallery or remove
+  Future<void> _changePhoto(String kind) async {
+    final p = _profile!;
+    final label = kind == 'avatar' ? 'Profile photo' : 'Cover photo';
+    final hasPhoto = (kind == 'avatar' ? p.avatarUrl : p.coverUrl) != null;
+    final colors = context.colors;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take a photo'),
+                onTap: () => Navigator.pop(sheetContext, 'camera'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose from gallery'),
+                onTap: () => Navigator.pop(sheetContext, 'gallery'),
+              ),
+              if (hasPhoto)
+                ListTile(
+                  leading: Icon(Icons.delete_outline, color: colors.danger),
+                  title: Text(
+                    'Remove photo',
+                    style: TextStyle(color: colors.danger),
+                  ),
+                  onTap: () => Navigator.pop(sheetContext, 'remove'),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+
+    String? path;
+    if (choice != 'remove') {
+      final camera = choice == 'camera';
+      try {
+        path = await _pick(
+          camera ? ImageSource.camera : ImageSource.gallery,
+          kind,
+        );
+      } catch (e) {
+        _say('Could not open the ${camera ? 'camera' : 'gallery'}.');
+        return;
+      }
+      if (path == null || !mounted) return;
+    }
+
+    setState(() => _photoBusy = kind);
+    try {
+      final updated = path == null
+          ? await _api.removeProfilePhoto(token: _auth.token!, kind: kind)
+          : await _api.uploadProfilePhoto(
+              token: _auth.token!,
+              kind: kind,
+              path: path,
+            );
+      if (!mounted) return;
+      setState(() => _profile = updated);
+      _say(path == null ? '$label removed.' : '$label changed.');
+    } catch (e) {
+      if (mounted) _say('$e');
+    } finally {
+      if (mounted) setState(() => _photoBusy = null);
+    }
+  }
+
   // The saved value of a detail, as the form starts with it ('' for the password)
   String _savedValue(String key) {
     final p = _profile!;
@@ -113,7 +226,7 @@ class _MyProfileViewState extends State<MyProfileView> {
     };
   }
 
-  // The saved value as the Edit profile list shows it
+  // The saved value as the Edit account list shows it
   String _shownValue(String key) {
     final p = _profile!;
     return switch (key) {
@@ -189,7 +302,7 @@ class _MyProfileViewState extends State<MyProfileView> {
     }
   }
 
-  // Edit profile: a sheet listing what can be changed, one detail at a time
+  // Edit account: a sheet listing what can be changed, one detail at a time
   Future<void> _openEdit() {
     _field = null;
     _formError = null;
@@ -216,7 +329,7 @@ class _MyProfileViewState extends State<MyProfileView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Edit profile',
+                    'Edit account',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 4),
@@ -259,7 +372,7 @@ class _MyProfileViewState extends State<MyProfileView> {
     ).whenComplete(() => _field = null);
   }
 
-  // One detail of the Edit profile list, with its form when it is open
+  // One detail of the Edit account list, with its form when it is open
   Widget _editRow(BuildContext context, _Editable item, StateSetter setSheet) {
     final colors = context.colors;
     final open = _field == item.key;
@@ -459,7 +572,7 @@ class _MyProfileViewState extends State<MyProfileView> {
           ),
         const SizedBox(height: 12),
         Text(
-          'Could not load your full profile. Check your connection.\n'
+          'Could not load your full account. Check your connection.\n'
           '$_loadError',
           style: TextStyle(color: colors.textMuted, fontSize: 13),
         ),
@@ -597,7 +710,7 @@ class _MyProfileViewState extends State<MyProfileView> {
             Divider(height: 1, color: colors.line),
             const SizedBox(height: 12),
             Text(
-              'Change your email, username or password with Edit profile. '
+              'Change your email, username or password with Edit account. '
               'Your role, municipality and join date can only be changed by '
               'an admin.',
               style: TextStyle(color: colors.textMuted, fontSize: 12),
@@ -608,7 +721,8 @@ class _MyProfileViewState extends State<MyProfileView> {
     );
   }
 
-  // The profile card: cover, avatar, name, and Edit profile
+  // The account card: cover and profile photos (each with a change button),
+  // name, and Edit account
   Widget _buildCoverCard(UserProfile p) {
     final colors = context.colors;
     final isFarmer = p.role == 'farmer';
@@ -627,37 +741,97 @@ class _MyProfileViewState extends State<MyProfileView> {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              const SizedBox(
+              // tall enough for the half of the profile photo below the cover,
+              // so its camera button can be tapped
+              const SizedBox(height: coverHeight + avatar / 2),
+              SizedBox(
                 height: coverHeight,
                 width: double.infinity,
-                child: _Cover(),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (p.coverUrl case final url?)
+                      Image.network(
+                        url,
+                        fit: BoxFit.cover,
+                        // offline or gone: the plain cover instead
+                        errorBuilder: (_, _, _) => const _Cover(),
+                      )
+                    else
+                      const _Cover(),
+                    if (_photoBusy == 'cover') const _PhotoBusy(),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 10,
+                right: 10,
+                child: _CoverButton(
+                  onPressed: _photoBusy == null
+                      ? () => _changePhoto('cover')
+                      : null,
+                ),
               ),
               Positioned(
                 left: 16,
                 top: coverHeight - avatar / 2,
-                child: Container(
+                child: SizedBox(
                   width: avatar,
                   height: avatar,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: colors.accent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: colors.surface, width: 4),
-                  ),
-                  child: Text(
-                    _initials(p.fullName),
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w600,
-                      color: colors.onAccent,
-                    ),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: avatar,
+                        height: avatar,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          color: colors.accent,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: colors.surface, width: 4),
+                        ),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Center(
+                              child: Text(
+                                _initials(p.fullName),
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.onAccent,
+                                ),
+                              ),
+                            ),
+                            if (p.avatarUrl case final url?)
+                              Image.network(
+                                url,
+                                fit: BoxFit.cover,
+                                // offline or gone: the initials show through
+                                errorBuilder: (_, _, _) =>
+                                    const SizedBox.shrink(),
+                              ),
+                            if (_photoBusy == 'avatar') const _PhotoBusy(),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: _AvatarButton(
+                          onPressed: _photoBusy == null
+                              ? () => _changePhoto('avatar')
+                              : null,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, avatar / 2 + 10, 16, 14),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -752,7 +926,7 @@ class _MyProfileViewState extends State<MyProfileView> {
                 ElevatedButton.icon(
                   onPressed: _openEdit,
                   icon: const Icon(Icons.edit_outlined, size: 18),
-                  label: const Text('Edit profile'),
+                  label: const Text('Edit account'),
                 ),
               ],
             ),
@@ -802,6 +976,82 @@ class _MyProfileViewState extends State<MyProfileView> {
         .join()
         .toUpperCase();
     return letters.isEmpty ? '?' : letters;
+  }
+}
+
+// A dark veil with a spinner over a photo while it uploads or is removed
+class _PhotoBusy extends StatelessWidget {
+  const _PhotoBusy();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      color: Color(0x66000000),
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Change cover, over the cover's top-right corner: a small white button
+class _CoverButton extends StatelessWidget {
+  const _CoverButton({required this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        backgroundColor: colors.surface.withValues(alpha: 0.92),
+        visualDensity: VisualDensity.compact,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+      ),
+      icon: const Icon(Icons.photo_camera_outlined, size: 16),
+      label: const Text('Change cover'),
+    );
+  }
+}
+
+// The camera badge on the profile photo's bottom-right edge
+class _AvatarButton extends StatelessWidget {
+  const _AvatarButton({required this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Tooltip(
+      message: 'Change profile photo',
+      child: Material(
+        color: colors.surface,
+        shape: CircleBorder(side: BorderSide(color: colors.line)),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.all(7),
+            child: Icon(
+              Icons.photo_camera_outlined,
+              size: 18,
+              color: colors.text,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
